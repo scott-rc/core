@@ -9,38 +9,58 @@ import (
 
 // Logger
 type Logger interface {
+	// Debug
 	Debug(msg string, keysAndValues ...interface{})
+	// Info
 	Info(msg string, keysAndValues ...interface{})
+	// Warn
 	Warn(msg string, keysAndValues ...interface{})
+	// Error
 	Error(msg string, keysAndValues ...interface{})
+	// DPanic
 	DPanic(msg string, keysAndValues ...interface{})
+	// Panic
 	Panic(msg string, keysAndValues ...interface{})
+	// Fatal
 	Fatal(msg string, keysAndValues ...interface{})
+	// Log
 	Log(level zapcore.Level, msg string, keysAndValues ...interface{})
+	// WithCore
 	WithCore(*Core) Logger
+	// With
 	With(...interface{}) Logger
+	// Clone
 	Clone() Logger
+	// Close
 	Close() error
 }
 
+// logger
 type logger struct {
 	core *Core
 	impl *zap.SugaredLogger
 }
 
+// newLogger
 func newLogger(cfg *Config) (Logger, error) {
 	encoder := zapcore.EncoderConfig{
+		NameKey:       "logger",
+		MessageKey:    "message",
+		StacktraceKey: "stacktrace",
+		CallerKey:     "caller",
+		EncodeCaller:  zapcore.ShortCallerEncoder,
+		LineEnding:    zapcore.DefaultLineEnding,
+
+		// we use "time" and RFC3339 because google cloud logging requires it
+		// https://cloud.google.com/logging/docs/agent/configuration?hl=en#timestamp-processing
 		TimeKey:        "time",
-		LevelKey:       "severity",
-		NameKey:        "logger",
-		CallerKey:      "caller",
-		MessageKey:     "message",
-		StacktraceKey:  "stacktrace",
-		LineEnding:     zapcore.DefaultLineEnding,
-		EncodeLevel:    zapcore.CapitalLevelEncoder,
 		EncodeTime:     zapcore.RFC3339TimeEncoder,
 		EncodeDuration: zapcore.StringDurationEncoder,
-		EncodeCaller:   zapcore.ShortCallerEncoder,
+
+		// we use "severity" and CapitalLevelEncoder because google cloud logging requires it
+		// https://cloud.google.com/logging/docs/agent/configuration?hl=en#special-fields
+		LevelKey:    "severity",
+		EncodeLevel: zapcore.CapitalLevelEncoder,
 	}
 
 	var level zapcore.Level
@@ -63,34 +83,42 @@ func newLogger(cfg *Config) (Logger, error) {
 	return &logger{core: nil, impl: impl.Sugar()}, nil
 }
 
+// Debug
 func (l *logger) Debug(msg string, keysAndValues ...interface{}) {
 	l.Log(zapcore.DebugLevel, msg, keysAndValues...)
 }
 
+// Info
 func (l *logger) Info(msg string, keysAndValues ...interface{}) {
 	l.Log(zapcore.InfoLevel, msg, keysAndValues...)
 }
 
+// Warn
 func (l *logger) Warn(msg string, keysAndValues ...interface{}) {
 	l.Log(zapcore.WarnLevel, msg, keysAndValues...)
 }
 
+// Error
 func (l *logger) Error(msg string, keysAndValues ...interface{}) {
 	l.Log(zapcore.ErrorLevel, msg, keysAndValues...)
 }
 
+// DPanic
 func (l *logger) DPanic(msg string, keysAndValues ...interface{}) {
 	l.Log(zapcore.DPanicLevel, msg, keysAndValues...)
 }
 
+// Panic
 func (l *logger) Panic(msg string, keysAndValues ...interface{}) {
 	l.Log(zapcore.PanicLevel, msg, keysAndValues...)
 }
 
+// Fatal
 func (l *logger) Fatal(msg string, keysAndValues ...interface{}) {
 	l.Log(zapcore.FatalLevel, msg, keysAndValues...)
 }
 
+// Log
 func (l *logger) Log(level zapcore.Level, msg string, keysAndValues ...interface{}) {
 	if l.core != nil {
 		keysAndValues = append(keysAndValues, "core", l.core)
@@ -113,18 +141,22 @@ func (l *logger) Log(level zapcore.Level, msg string, keysAndValues ...interface
 	}
 }
 
+// WithCore
 func (l *logger) WithCore(core *Core) Logger {
 	return &logger{core: core, impl: l.impl}
 }
 
+// With
 func (l *logger) With(keysAndValues ...interface{}) Logger {
 	return &logger{core: l.core, impl: l.impl.With(keysAndValues...)}
 }
 
+// Clone
 func (l *logger) Clone() Logger {
 	return &logger{core: l.core, impl: l.impl.With()}
 }
 
+// Close
 func (l *logger) Close() error {
 	return l.impl.Sync()
 }

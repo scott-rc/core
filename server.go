@@ -4,27 +4,26 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"os"
 	"strings"
-
-	graphqlErrors "github.com/graph-gophers/graphql-go/errors"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/cors"
 	"github.com/graph-gophers/graphql-go"
-	gonanoid "github.com/matoous/go-nanoid"
-	"github.com/opentracing/opentracing-go/log"
+	graphqlErrors "github.com/graph-gophers/graphql-go/errors"
+	nanoid "github.com/matoous/go-nanoid"
 )
 
 var (
-	resolver interface{}
-	decorate ContextDecorator
+	projectId = os.Getenv("GOOGLE_CLOUD_PROJECT")
 )
 
+// response
 type response struct {
 	w      http.ResponseWriter
 	core   *Core
@@ -32,6 +31,7 @@ type response struct {
 	status int
 }
 
+// newResponse
 func newResponse(core *Core, w http.ResponseWriter) response {
 	return response{
 		w:      w,
@@ -41,23 +41,24 @@ func newResponse(core *Core, w http.ResponseWriter) response {
 	}
 }
 
+// write
 func (r *response) write() {
 	if r.result == nil {
 		r.core.Logger.DPanic("response.Result is nil", "response", r)
-		r.writeError(NewError(r.core, KindUnknown))
+		r.writeError(KindUnknown)
 	}
-	r.result.Extensions = r.core.Extensions()
 
+	r.result.Extensions = r.core.Extensions()
 	r.w.Header().Add("Content-Type", "application/json")
 	r.w.WriteHeader(r.status)
 
-	r.core.Logger.Debug("writing response", "response", r)
 	err := json.NewEncoder(r.w).Encode(r.result)
 	if err != nil {
 		r.core.Logger.DPanic("failed to encode result", "error", err)
 	}
 }
 
+// writeError
 func (r *response) writeError(err error, args ...interface{}) {
 	e := NewError(r.core, err, args...)
 	r.status = e.HttpStatus()
@@ -75,92 +76,78 @@ func (r *response) writeError(err error, args ...interface{}) {
 	r.write()
 }
 
-// ContextDecorator
-type ContextDecorator func(ctx context.Context) context.Context
-
-// SetContextDecorator
-func SetContextDecorator(decorator ContextDecorator) {
-	decorate = decorator
-}
-
-// SetGraphqlResolver
-func SetGraphqlResolver(r interface{}) {
-	resolver = r
-}
-
+// server
 type server struct {
-	cfg    Configuration
-	router chi.Router
-	logger Logger
-	db     *sql.DB
+	config   Configuration
+	router   chi.Router
+	logger   Logger
+	schema   *graphql.Schema
+	resolver interface{}
+	decorate ResolverContextDecorator
+	db       *sql.DB
 }
 
+// newCore
 func (s *server) newCore(r *http.Request, operation string) (*Core, error) {
 	// this should never error
-	id, _ := gonanoid.Nanoid()
+	id, _ := nanoid.Nanoid()
 
-	ctx := &Core{
-		Config:     s.cfg,
-		Context:    r.Context(),
+	core := &Core{
+		Config:     s.config,
 		Db:         s.db,
 		Id:         id,
-		Logger:     nil,
 		Operations: []string{operation},
-		Request:    r,
-		Session:    nil,
+
+		// set later
+		Context: nil,
+		Request: nil,
+		Logger:  nil,
+		Session: nil,
 	}
 
-	// create circular reference to core and logger
-	ctx.Logger = s.logger.WithCore(ctx)
+	// attach logger to core
+	core.Logger = s.logger.WithCore(core)
 
-	// set google cloud tracing
+	// look for google cloud tracing header
+	// https://cloud.google.com/run/docs/logging?hl=en#writing_structured_logs
 	traceParts := strings.Split(r.Header.Get("X-Cloud-Trace-Context"), "/")
 	if len(traceParts) > 0 && len(traceParts[0]) > 0 {
-		ctx.Logger = ctx.Logger.With(
+		// attach google cloud tracing id to logger
+		core.Logger = core.Logger.With(
 			"logging.googleapis.com/trace",
-			fmt.Sprintf("projects/%s/traces/%s", s.cfg.CoreConfig().GoogleCloud.ProjectId, traceParts[0]))
+			fmt.Sprintf("projects/%s/traces/%s", projectId, traceParts[0]))
 	}
 
-	// create circular reference to core and r.Context()
-	c := context.WithValue(ctx.Context, ContextKey, ctx)
+	// attach core to context, decorate context with decorator, and attach context to core
+	core.Context = s.decorate(context.WithValue(r.Context(), ContextKey, core))
 
-	// decorate context with users decorator
-	c = decorate(c)
+	// attach request to core with new decorated context
+	core.Request = r.WithContext(core.Context)
 
-	// re-assign request with new context
-	*r = *r.WithContext(c)
-
-	return ctx, ctx.StartSession()
+	return core, core.StartSession()
 }
 
-func (s *server) cleanup() {
-	if s.db != nil {
-		if err := s.db.Close(); err != nil {
-			s.logger.Error("failed to close database", "error", err)
-		}
-	}
-
-	if s.logger != nil {
-		if err := s.logger.Close(); err != nil {
-			log.Error(err)
-		}
-	}
-}
-
-func (s *server) routes() {
+// routes
+func (s *server) setupRoutes() {
 	s.router.Use(middleware.RealIP)
 	s.router.Use(middleware.StripSlashes)
-	s.router.Use(cors.New(s.cfg.CoreConfig().Server.corsOptions()).Handler)
+	s.router.Use(cors.New(s.config.CoreConfig().Server.corsOptions()).Handler)
+	s.router.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if rvr := recover(); rvr != nil && rvr != http.ErrAbortHandler {
+					s.logger.Error("recovering from panic", "error", rvr)
 
-	bytes, err := ioutil.ReadFile(s.cfg.CoreConfig().Graphql.Schema)
-	if err != nil {
-		s.logger.Fatal("failed to read graphql schema", "error", err, "config", s.cfg)
-	}
+					// error would be session related, which doesn't matter here
+					core, _ := s.newCore(r, "server.Recover")
+					response := newResponse(core, w)
+					response.writeError(KindUnknown)
+				}
+			}()
 
-	schema, err := graphql.ParseSchema(string(bytes), resolver)
-	if err != nil {
-		s.logger.Fatal("failed to parse graphql schema", "error", err, "config", s.cfg)
-	}
+			next.ServeHTTP(w, r)
+		})
+	})
 
 	s.router.HandleFunc("/api", func(w http.ResponseWriter, r *http.Request) {
 		core, err := s.newCore(r, "server.handleGraphql")
@@ -182,7 +169,7 @@ func (s *server) routes() {
 			return
 		}
 
-		response.result = schema.Exec(r.Context(), request.Query, request.OperationName, request.Variables)
+		response.result = s.schema.Exec(r.Context(), request.Query, request.OperationName, request.Variables)
 		if response.result.Errors != nil {
 			if len(response.result.Errors) == 0 {
 				core.Logger.DPanic("response contains an empty list of errors", "response", response)
@@ -199,7 +186,7 @@ func (s *server) routes() {
 					} else {
 						// an error occurred before the resolver was called
 						// most likely a query validation error
-						response.status = 400
+						response.status = http.StatusBadRequest
 					}
 				}
 			}
@@ -234,46 +221,90 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
 }
 
-func checkGlobals() error {
-	if resolver == nil {
-		return errors.New("you must set the GraphQL resolver (help: call core.SetGraphqlResolver before calling core.Run)")
-	}
-	if detail == nil {
-		return errors.New("you must set the core.ErrorDetailer (help: call core.SetErrorDetailer before calling core.Run)")
-	}
-	if determine == nil {
-		return errors.New("you must set the core.ErrorDeterminer (help: call core.SetErrorDeterminer before calling core.Run)")
-	}
-	if decorate == nil {
-		return errors.New("you must set the core.ContextDetailer (help: call core.SetContextDecorator before calling core.Run)")
-	}
-	return nil
-}
-
 // Run
-func Run(cfg Configuration) error {
-	logger, err := newLogger(cfg.CoreConfig())
+func Run(opts Options) {
+	logger, err := newLogger(opts.Config.CoreConfig())
 	if err != nil {
-		return err
+		log.Fatalf("failed to create logger: %v", err)
 	}
 
-	err = checkGlobals()
-	if err != nil {
-		return err
+	detail = opts.ErrorDetailer
+	if detail == nil {
+		logger.Fatal("ErrorDetailer must not be nil", "config", opts.Config)
 	}
 
-	s := &server{cfg: cfg, router: chi.NewRouter(), logger: logger, db: nil}
-	defer s.cleanup()
+	determine = opts.ErrorDeterminer
+	if determine == nil {
+		logger.Fatal("ErrorDeterminer must not be nil", "config", opts.Config)
+	}
 
-	if cfg.CoreConfig().Database.Driver != "" {
-		db, err := sql.Open(cfg.CoreConfig().Database.Driver, cfg.CoreConfig().Database.DataSourceName())
+	s := &server{
+		logger:   logger,
+		config:   opts.Config,
+		resolver: opts.Resolver,
+		decorate: opts.ResolverContextDecorator,
+		router:   chi.NewRouter(),
+
+		// set later
+		db:     nil,
+		schema: nil,
+	}
+
+	if s.resolver == nil {
+		logger.Fatal("Resolver must not be nil", "config", opts.Config)
+	}
+	if s.decorate == nil {
+		logger.Fatal("ResolverContextDecorator must not be nil", "config", opts.Config)
+	}
+
+	if s.config.CoreConfig().Database.Driver != "" {
+		db, err := sql.Open(s.config.CoreConfig().Database.Driver, s.config.CoreConfig().Database.DataSourceName())
 		if err != nil {
-			return err
+			logger.Fatal("failed to open database connection", "error", err, "config", s.config)
 		}
 		s.db = db
 	}
 
-	s.routes()
-	s.logger.Info(fmt.Sprintf("listening on port %d", s.cfg.CoreConfig().Server.Port), "config", cfg)
-	return http.ListenAndServe(fmt.Sprintf(":%d", s.cfg.CoreConfig().Server.Port), s)
+	bytes, err := ioutil.ReadFile(s.config.CoreConfig().Graphql.Schema)
+	if err != nil {
+		s.logger.Fatal("failed to read graphql schema", "error", err, "config", s.config)
+	}
+
+	s.schema, err = graphql.ParseSchema(string(bytes), s.resolver)
+	if err != nil {
+		s.logger.Fatal("failed to parse graphql schema", "error", err, "config", s.config)
+	}
+
+	s.setupRoutes()
+
+	// cleanup server resources
+	defer func() {
+		if s.db != nil {
+			if err := s.db.Close(); err != nil {
+				s.logger.Error("failed to close database", "error", err)
+			}
+		}
+		if s.logger != nil {
+			if err := s.logger.Close(); err != nil {
+				log.Printf("failed to close logger: %v", err)
+			}
+		}
+	}()
+
+	s.logger.Info(fmt.Sprintf("listening on port %d", s.config.CoreConfig().Server.Port), "config", s.config)
+	if err = http.ListenAndServe(fmt.Sprintf(":%d", s.config.CoreConfig().Server.Port), s); err != nil {
+		logger.Fatal("failed to run server", "error", err)
+	}
 }
+
+// Options
+type Options struct {
+	Config                   Configuration
+	ErrorDeterminer          ErrorDeterminer
+	ErrorDetailer            ErrorDetailer
+	ResolverContextDecorator ResolverContextDecorator
+	Resolver                 interface{}
+}
+
+// ResolverContextDecorator
+type ResolverContextDecorator func(ctx context.Context) context.Context

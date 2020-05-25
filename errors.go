@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -16,25 +15,26 @@ var (
 
 // ErrorKind
 type ErrorKind struct {
-	// Code
+	// Code represents the error code for this kind of error.
+	// The first 3 digits are used to determine the HTTP Status that should be returned if this kind of error occurs.
 	Code int
-	// Title
+	// Title is a short, title cased description of the error.
 	Title string
-	// Message
+	// Message represents a more detailed description of the error.
 	Message string
-	// Severity
+	// Severity indicates the level at which this error should be logged at.
 	Severity zapcore.Level
 }
 
 var (
 	// KindInvalidJson
-	KindInvalidJson = ErrorKind{400_000, "Invalid JSON", "You're payload contains invalid JSON", zapcore.InfoLevel}
+	KindInvalidJson = ErrorKind{400_000, "Invalid JSON", "Your request body contains invalid JSON", zapcore.InfoLevel}
 	// KindRouteNotFound
-	KindRouteNotFound = ErrorKind{404_000, "Not Found", "That route does not exist", zapcore.DebugLevel}
+	KindRouteNotFound = ErrorKind{404_000, "Not Found", "The requested url does not exist", zapcore.DebugLevel}
 	// KindMethodNotAllowed
-	KindMethodNotAllowed = ErrorKind{405_000, "Method Not Allowed", "That HTTP method is not allowed for this route", zapcore.DebugLevel}
+	KindMethodNotAllowed = ErrorKind{405_000, "Method Not Allowed", "The requested url does not support that HTTP method", zapcore.DebugLevel}
 	// KindUnknown
-	KindUnknown = ErrorKind{500_000, "", "", zapcore.ErrorLevel}
+	KindUnknown = ErrorKind{500_000, "Unexpected Error", "An unexpected error occurred while processing your request. Please try again later.", zapcore.ErrorLevel}
 )
 
 // Error
@@ -45,7 +45,7 @@ func (k ErrorKind) Error() string {
 	if k.Title != "" {
 		return k.Title
 	}
-	return "Unexpected Error"
+	return KindUnknown.Title
 }
 
 // MarshalLogObject is used to implement zapcore.ObjectMarshaler interface.
@@ -54,14 +54,6 @@ func (k ErrorKind) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	enc.AddString("title", k.Title)
 	enc.AddString("message", k.Message)
 	return nil
-}
-
-// ErrorDeterminer
-type ErrorDeterminer func(*Core, error) ErrorKind
-
-// SetErrorDeterminer
-func SetErrorDeterminer(errorDeterminer ErrorDeterminer) {
-	determine = errorDeterminer
 }
 
 // Error
@@ -77,16 +69,19 @@ type Error struct {
 // NewError
 func NewError(core *Core, err error, args ...interface{}) Error {
 	if e, ok := err.(Error); ok {
+		// err is already an Error
 		return e
 	}
 
 	e := Error{core: core, Cause: err, Kind: KindUnknown}
 
 	if kind, ok := err.(ErrorKind); ok {
+		// err is an ErrorKind, replace the kind and message
 		e.Kind = kind
 		e.Message = kind.Message
 	}
 
+	// override any given arguments
 	for _, arg := range args {
 		switch arg := arg.(type) {
 		case ErrorKind:
@@ -96,14 +91,16 @@ func NewError(core *Core, err error, args ...interface{}) Error {
 		case zapcore.Level:
 			e.Kind.Severity = arg
 		default:
-			core.Logger.DPanic("invalid argument given to errors.NewError: %v", "arg", arg)
+			core.Logger.DPanic("invalid argument given to core.NewError", "argument", arg)
 		}
 	}
 
 	if e.Kind == KindUnknown {
+		// we still don't know the ErrorKind, let them determine it
 		e.Kind = determine(core, e.Cause)
 	}
 
+	// let them add any details to the Error
 	detail(&e)
 
 	return e
@@ -128,12 +125,12 @@ func (e Error) Extensions() map[string]interface{} {
 		extensions["details"] = e.Details
 	}
 
-	if e.core.Config.CoreConfig().Env != "production" {
+	if e.core.Config.CoreConfig().Env != EnvProduction {
 		extensions["operations"] = e.core.Operations
 		if e.Cause != nil {
 			extensions["cause"] = map[string]interface{}{
-				"message": e.Cause.Error(),
 				"type":    fmt.Sprintf("%T", e.Cause),
+				"message": e.Cause.Error(),
 			}
 		}
 	}
@@ -146,7 +143,7 @@ func (e Error) HttpStatus() int {
 	str := strconv.Itoa(e.Kind.Code)
 	status, err := strconv.Atoi(str[:3])
 	if err != nil {
-		e.core.Logger.DPanic("couldn't get http status from errors.Error", zap.Object("error", e))
+		e.core.Logger.DPanic("couldn't get http status from core.Error", "error", e)
 		return http.StatusInternalServerError
 	}
 	return status
@@ -164,10 +161,8 @@ func (e Error) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return nil
 }
 
-// ErrorDetailer
-type ErrorDetailer func(e *Error)
+// ErrorDeterminer is a function that takes an err and returns an ErrorKind.
+type ErrorDeterminer func(*Core, error) ErrorKind
 
-// SetErrorDetailer
-func SetErrorDetailer(errorDetailer ErrorDetailer) {
-	detail = errorDetailer
-}
+// ErrorDetailer is a function that takes a *core.Error so that it can add details to it.
+type ErrorDetailer func(e *Error)

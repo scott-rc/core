@@ -12,8 +12,9 @@ import (
 	"strings"
 	"time"
 
-	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/go-chi/cors"
+
+	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/go-playground/validator/v10"
 	"github.com/spf13/viper"
 	"go.uber.org/zap/zapcore"
@@ -26,6 +27,13 @@ const (
 	EnvProduction  = "production"
 )
 
+// Configuration indicates a struct contains a core.Config and can be logged.
+type Configuration interface {
+	zapcore.ObjectMarshaler
+	CoreConfig() *Config
+}
+
+// Config contains the configuration about core.
 type Config struct {
 	// Path is the argument given to the -c flag.
 	Path string `mapstructure:"-" validate:"-" json:"path"`
@@ -40,8 +48,6 @@ type Config struct {
 	// Database contains the configuration about database connections.
 	// This is optional, if no database configuration is found, then no database connection is created.
 	Database DatabaseConfig `mapstructure:"database" validate:"" json:"database"`
-	// GoogleCloud contains the configuration when running on google cloud.
-	GoogleCloud GoogleCloudConfig `mapstructure:"google_cloud" validate:"" json:"googleCloud"`
 }
 
 // ServerConfig contains the configuration about the server.
@@ -52,6 +58,20 @@ type ServerConfig struct {
 	Cors CorsConfig `mapstructure:"cors" validate:"required" json:"cors"`
 	// Jwt contains the configuration about JSON web tokens.
 	Jwt JwtConfig `mapstructure:"jwt" validate:"required" json:"-"`
+}
+
+// corsOptions
+func (svr *ServerConfig) corsOptions() cors.Options {
+	return cors.Options{
+		MaxAge:             svr.Cors.MaxAge,
+		AllowCredentials:   svr.Cors.AllowCredentials,
+		AllowedOrigins:     svr.Cors.AllowedOrigins,
+		AllowedMethods:     svr.Cors.AllowedMethods,
+		AllowedHeaders:     svr.Cors.AllowedHeaders,
+		ExposedHeaders:     nil,
+		OptionsPassthrough: false,
+		Debug:              false,
+	}
 }
 
 // CorsConfig contains the configuration about CORS.
@@ -118,9 +138,7 @@ type JwtConfig struct {
 // Log contains the configuration about logging.
 type LogConfig struct {
 	// Level indicates the level the application should log at. Any levels greater than or equal to
-	// this will be logged.
-	//
-	// Log levels from least severe to highest: debug, info, warn, error
+	// this will be logged. Log levels from least severe to highest: debug, info, warn, error
 	Level string `mapstructure:"level" validate:"required,oneof=debug info warn error" json:"level"`
 }
 
@@ -146,26 +164,14 @@ type DatabaseConfig struct {
 	Password string `mapstructure:"password" validate:"required" json:"-"`
 }
 
-// GoogleCloudConfig contains the configuration when running on google cloud.
-type GoogleCloudConfig struct {
-	ProjectId string `mapstructure:"project_id" validate:"required" json:"projectId"`
+// DataSourceName returns the connection string in the format of "user=%s password=%s dbname=%s host=%s port=%d sslmode=disable"
+func (db *DatabaseConfig) DataSourceName() string {
+	return fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=disable", db.User, db.Password, db.Dbname, db.Host, db.Port)
 }
 
-func (dCfg *DatabaseConfig) DataSourceName() string {
-	return fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=disable", dCfg.User, dCfg.Password, dCfg.Dbname, dCfg.Host, dCfg.Port)
-}
-
-func (sCfg *ServerConfig) corsOptions() cors.Options {
-	return cors.Options{
-		MaxAge:             sCfg.Cors.MaxAge,
-		AllowCredentials:   sCfg.Cors.AllowCredentials,
-		AllowedOrigins:     sCfg.Cors.AllowedOrigins,
-		AllowedMethods:     sCfg.Cors.AllowedMethods,
-		AllowedHeaders:     sCfg.Cors.AllowedHeaders,
-		ExposedHeaders:     nil,
-		OptionsPassthrough: false,
-		Debug:              false,
-	}
+// CoreConfig is used to implement the core.Configuration interface.
+func (cfg *Config) CoreConfig() *Config {
+	return cfg
 }
 
 // MarshalLogObject is used to implement the zapcore.ObjectMarshaler interface.
@@ -230,19 +236,8 @@ func (cfg *Config) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return nil
 }
 
-// Configuration indicates a struct contains a core.Config
-type Configuration interface {
-	zapcore.ObjectMarshaler
-	CoreConfig() *Config
-}
-
-// CoreConfig is used to implement the core.Configuration interface.
-func (cfg *Config) CoreConfig() *Config {
-	return cfg
-}
-
 // LoadConfig takes a reference to a struct that contains a core.Config.
-// It uses the config flag to locate the configuration file and maps it to the referenced struct using viper.
+// It uses the -c flag to locate the configuration file and maps it to the referenced struct using viper.
 //
 // If any of the following occurs, it terminates the application with a fatal error:
 // - config flag not provided
@@ -251,49 +246,50 @@ func (cfg *Config) CoreConfig() *Config {
 // - the referenced struct is not valid
 func LoadConfig(cfg Configuration) {
 	var path string
-	flag.StringVar(&path, "c", "", "relative path to the config file")
+	flag.StringVar(&path, "c", "", "path to the config file")
 	flag.Parse()
 
 	if path == "" {
-		log.Fatal("you must pass the relative path to the config file using the -c argument")
+		log.Fatal("you must pass the path to the config file using the -c argument")
 	}
 
-	if strings.HasPrefix(path, "gcp:") {
+	if strings.HasPrefix(path, "gcloud:") {
+		// the path is a secret in google cloud's secret manager
 		ctx := context.Background()
 		client, err := secretmanager.NewClient(ctx)
 		if err != nil {
-			log.Fatal("failed to setup google cloud secret manager client", err)
+			log.Fatalf("failed to setup google cloud secret manager client: %v", err)
 		}
 
-		result, err := client.AccessSecretVersion(ctx, &secretmanagerpb.AccessSecretVersionRequest{
-			Name: path[4:],
-		})
+		// remove the "gcloud:" prefix
+		req := &secretmanagerpb.AccessSecretVersionRequest{Name: path[7:]}
+		result, err := client.AccessSecretVersion(ctx, req)
 		if err != nil {
-			log.Fatal("failed to access secret", err)
+			log.Fatalf("failed to access secret: %v", err)
 		}
 
 		viper.SetConfigType("toml")
 		err = viper.ReadConfig(bytes.NewBuffer(result.Payload.Data))
 		if err != nil {
-			log.Fatal("failed to read config from secret", err)
+			log.Fatalf("failed to read config from secret: %v", err)
 		}
 	} else {
 		var err error
 		path, err = filepath.Abs(path)
 		if err != nil {
-			log.Fatal("failed to get absolute path to config file", err)
+			log.Fatalf("failed to get absolute path to config file: %v", err)
 		}
 
 		viper.SetConfigFile(path)
 		err = viper.ReadInConfig()
 		if err != nil {
-			log.Fatal("failed to read in the config", err)
+			log.Fatalf("failed to read in the config: %v", err)
 		}
 	}
 
 	err := viper.Unmarshal(cfg)
 	if err != nil {
-		log.Fatal("failed to unmarshal the config to your struct", err)
+		log.Fatalf("failed to unmarshal the config to your struct: %v", err)
 	}
 
 	// make absolute paths
@@ -301,20 +297,20 @@ func LoadConfig(cfg Configuration) {
 	coreCfg.Path = path
 	coreCfg.Graphql.Schema, err = filepath.Abs(coreCfg.Graphql.Schema)
 	if err != nil {
-		log.Fatal("failed to get absolute path to graphql schema", err)
+		log.Fatalf("failed to get absolute path to graphql schema: %v", err)
 	}
 
-	// set port
 	envPort := os.Getenv("PORT")
 	if envPort != "" {
+		// PORT environment variable always takes precedence as many hosting platforms require its use
 		coreCfg.Server.Port, err = strconv.Atoi(envPort)
 		if err != nil {
-			log.Fatal("failed to parse PORT from environment variable", err)
+			log.Fatalf("failed to parse PORT from environment variable: %v", err)
 		}
 	}
 
 	err = validator.New().Struct(cfg)
 	if err != nil {
-		log.Fatal("config failed validation", err)
+		log.Fatalf("config failed validation: %v", err)
 	}
 }

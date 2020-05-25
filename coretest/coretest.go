@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func NewContext(t *testing.T, config *core.Config) *core.Core {
+func NewCore(t *testing.T, config *core.Config) *core.Core {
 	id, err := gonanoid.Nanoid()
 	require.NoError(t, err)
 
@@ -98,7 +98,7 @@ func (t testLogger) WithCore(*core.Core) core.Logger {
 	return t
 }
 
-func (t testLogger) With(keysAndValues ...interface{}) core.Logger {
+func (t testLogger) With(...interface{}) core.Logger {
 	return t
 }
 

@@ -15,8 +15,11 @@ type contextKey int
 // ContextKey is used to set and retrieve the *core.Core from a context.Context
 const ContextKey = contextKey(iota)
 
-// Core contains information specific to a request. It can be wrapped to contain additional fields
-// for your application. Take a look at core.ContextDecorator to see how to add additional fields.
+// Core contains useful singletons (logger, config, db) and information specific to a request (id, session, etc...).
+// It can be wrapped to contain additional fields for your application. Take a look at core.ResolverContextDecorator to
+// see how to add additional fields.
+//
+// *core.Core will always be attached to the context.Context in your resolver method. Use the ContextKey to retrieve it.
 type Core struct {
 	Context    context.Context
 	Config     Configuration
