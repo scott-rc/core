@@ -8,6 +8,12 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// ErrorDeterminer is a function that takes an err and returns an ErrorKind.
+type ErrorDeterminer func(*Core, error) ErrorKind
+
+// ErrorDetailer is a function that takes a *core.Error so that it can add details to it.
+type ErrorDetailer func(e *Error)
+
 var (
 	detail    ErrorDetailer
 	determine ErrorDeterminer
@@ -153,16 +159,10 @@ func (e Error) HttpStatus() int {
 func (e Error) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	enc.AddString("message", e.Message)
 	_ = enc.AddObject("kind", e.Kind)
-	_ = enc.AddObject("exception", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
+	_ = enc.AddObject("cause", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
 		enc.AddString("type", fmt.Sprintf("%T", e.Cause))
 		enc.AddString("message", e.Cause.Error())
 		return nil
 	}))
 	return nil
 }
-
-// ErrorDeterminer is a function that takes an err and returns an ErrorKind.
-type ErrorDeterminer func(*Core, error) ErrorKind
-
-// ErrorDetailer is a function that takes a *core.Error so that it can add details to it.
-type ErrorDetailer func(e *Error)

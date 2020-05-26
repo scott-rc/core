@@ -13,14 +13,22 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func NewCore(t *testing.T, config *core.Config) *core.Core {
+type Options struct {
+	Config                   core.Configuration
+	ResolverContextDecorator core.ResolverContextDecorator
+}
+
+func NewCore(t *testing.T, opts Options) *core.Core {
+	require.NotNil(t, opts.Config)
+	require.NotNil(t, opts.ResolverContextDecorator)
+
 	id, err := gonanoid.Nanoid()
 	require.NoError(t, err)
 
 	c := &core.Core{
 		Id:         id,
 		Logger:     testLogger{t},
-		Config:     config,
+		Config:     opts.Config,
 		Request:    httptest.NewRequest("POST", "/api", nil),
 		Operations: []string{},
 
@@ -29,11 +37,11 @@ func NewCore(t *testing.T, config *core.Config) *core.Core {
 		Session: nil,
 		Db:      nil,
 	}
-	c.Context = context.WithValue(context.Background(), core.ContextKey, c)
+	c.Context = opts.ResolverContextDecorator(context.WithValue(context.Background(), core.ContextKey, c))
 	require.NoError(t, c.StartSession())
 
-	if config.Database.Driver != "" {
-		db, err := sql.Open(config.Database.Driver, config.Database.DataSourceName())
+	if opts.Config.CoreConfig().Database.Driver != "" {
+		db, err := sql.Open(opts.Config.CoreConfig().Database.Driver, opts.Config.CoreConfig().Database.DataSourceName())
 		require.NoError(t, err)
 		c.Db = db
 	}
