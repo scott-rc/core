@@ -233,11 +233,6 @@ func Run(opts Options) {
 		logger.Fatal("ErrorDetailer must not be nil", "config", opts.Config)
 	}
 
-	determine = opts.ErrorDeterminer
-	if determine == nil {
-		logger.Fatal("ErrorDeterminer must not be nil", "config", opts.Config)
-	}
-
 	s := &server{
 		logger:   logger,
 		config:   opts.Config,
@@ -300,7 +295,6 @@ func Run(opts Options) {
 // Options
 type Options struct {
 	Config                   Configuration
-	ErrorDeterminer          ErrorDeterminer
 	ErrorDetailer            ErrorDetailer
 	ResolverContextDecorator ResolverContextDecorator
 	Resolver                 interface{}

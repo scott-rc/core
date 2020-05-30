@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-playground/validator/v10"
+
 	"github.com/scott-rc/core"
 
 	gonanoid "github.com/matoous/go-nanoid"
@@ -31,6 +33,7 @@ func NewCore(t *testing.T, opts Options) *core.Core {
 		Config:     opts.Config,
 		Request:    httptest.NewRequest("POST", "/api", nil),
 		Operations: []string{},
+		Validate:   validator.New(),
 
 		// set later
 		Context: nil,

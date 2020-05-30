@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/go-playground/validator/v10"
+
 	"github.com/dgrijalva/jwt-go"
 	"go.uber.org/zap/zapcore"
 )
@@ -29,6 +31,7 @@ type Core struct {
 	Operations []string
 	Request    *http.Request
 	Session    Session
+	Validate   *validator.Validate
 }
 
 // AddOp adds an operation to the current core. Operations are used to display application specific
