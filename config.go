@@ -36,28 +36,45 @@ type Configuration interface {
 // Config contains the configuration about core.
 type Config struct {
 	// Path is the argument given to the -c flag.
-	Path string `mapstructure:"-" validate:"-" json:"path"`
+	Path string `mapstructure:"-" validate:"-"`
 	// Env indicates the current environment of the application (development, staging, production).
-	Env string `mapstructure:"env" validate:"required,oneof=development staging production" json:"env"`
+	Env string `mapstructure:"env" validate:"required,oneof=development staging production"`
+	// Deploy
+	Deploy Deploy `mapstructure:"deploy" validate:"required"`
 	// Server contains the configuration about the server.
-	Server ServerConfig `mapstructure:"server" validate:"required" json:"server"`
-	// Log contains the configuration about logging.
-	Log LogConfig `mapstructure:"log" validate:"required" json:"log"`
-	// Graphql contains the configuration about GraphQL.
-	Graphql GraphqlConfig `mapstructure:"graphql" validate:"required" json:"graphql"`
+	Server ServerConfig `mapstructure:"server" validate:"required"`
 	// Database contains the configuration about database connections.
 	// This is optional, if no database configuration is found, then no database connection is created.
-	Database DatabaseConfig `mapstructure:"database" validate:"" json:"database"`
+	Database DatabaseConfig `mapstructure:"database" validate:""`
+}
+
+type Deploy struct {
+	Docker DockerConfig `mapstructure:"docker"`
+	GCloud GCloudConfig `mapstructure:"gcloud"`
+}
+
+type DockerConfig struct {
+	Name string `mapstructure:"name"`
+}
+
+type GCloudConfig struct {
+	Service  string `mapstructure:"service"`
+	Platform string `mapstructure:"platform"`
+	Region   string `mapstructure:"region"`
 }
 
 // ServerConfig contains the configuration about the server.
 type ServerConfig struct {
 	// Port determines the port the server runs on.
-	Port int `mapstructure:"port" validate:"required,min=1" json:"port"`
+	Port int `mapstructure:"port" validate:"required,min=1"`
 	// Cors contains the configuration about CORS.
-	Cors CorsConfig `mapstructure:"cors" validate:"required" json:"cors"`
+	Cors CorsConfig `mapstructure:"cors" validate:"required"`
 	// Jwt contains the configuration about JSON web tokens.
-	Jwt JwtConfig `mapstructure:"jwt" validate:"required" json:"-"`
+	Jwt JwtConfig `mapstructure:"jwt" validate:"required"`
+	// Log contains the configuration about logging.
+	Log LogConfig `mapstructure:"log" validate:"required"`
+	// Graphql contains the configuration about GraphQL.
+	Graphql GraphqlConfig `mapstructure:"graphql" validate:"required"`
 }
 
 // corsOptions
@@ -78,25 +95,25 @@ func (svr *ServerConfig) corsOptions() cors.Options {
 type CorsConfig struct {
 	// MaxAge indicates how long (in seconds) the results of a preflight request
 	// can be cached
-	MaxAge int `mapstructure:"max_age" validate:"min=0" json:"maxAge"`
+	MaxAge int `mapstructure:"max_age" validate:"min=0"`
 	// AllowCredentials indicates whether the request can include user credentials like
 	// cookies, HTTP authentication or client side SSL certificates.
-	AllowCredentials bool `mapstructure:"allow_credentials" validate:"required" json:"allowCredentials"`
+	AllowCredentials bool `mapstructure:"allow_credentials" validate:"required"`
 	// AllowedOrigins is a list of origins a cross-domain request can be executed from.
 	// If the special "*" value is present in the list, all origins will be allowed.
 	// An origin may contain a wildcard (*) to replace 0 or more characters
 	// (i.e.: http://*.domain.com). Usage of wildcards implies a small performance penalty.
 	// Only one wildcard can be used per origin.
 	// Default value is ["*"]
-	AllowedOrigins []string `mapstructure:"allowed_origins" validate:"required,min=1" json:"allowedOrigins"`
+	AllowedOrigins []string `mapstructure:"allowed_origins" validate:"required,min=1"`
 	// AllowedMethods is a list of methods the client is allowed to use with
 	// cross-domain requests. Default value is simple methods (HEAD, GET and POST).
-	AllowedMethods []string `mapstructure:"allowed_methods" validate:"required,min=1" json:"allowedMethods"`
+	AllowedMethods []string `mapstructure:"allowed_methods" validate:"required,min=1"`
 	// AllowedHeaders is list of non simple headers the client is allowed to use with
 	// cross-domain requests.
 	// If the special "*" value is present in the list, all headers will be allowed.
 	// Default value is [] but "Origin" is always appended to the list.
-	AllowedHeaders []string `mapstructure:"allowed_headers" validate:"required,min=1" json:"allowedHeaders"`
+	AllowedHeaders []string `mapstructure:"allowed_headers" validate:"required,min=1"`
 }
 
 // JwtConfig contains the configuration about JSON web tokens.
@@ -112,17 +129,17 @@ type JwtConfig struct {
 	// single case-sensitive string containing a StringOrURI value.  The
 	// interpretation of audience values is generally application specific.
 	// Use of this claim is OPTIONAL.
-	Audience []string `mapstructure:"audience" validate:"required,min=1" json:"audience"`
+	Audience []string `mapstructure:"audience" validate:"required,min=1"`
 	// The "iss" (issuer) claim identifies the principal that issued the
 	// JWT.  The processing of this claim is generally application specific.
 	// The "iss" value is a case-sensitive string containing a StringOrURI
 	// value.  Use of this claim is OPTIONAL.
-	Issuer string `mapstructure:"issuer" validate:"required" json:"issuer"`
+	Issuer string `mapstructure:"issuer" validate:"required"`
 	// The "exp" (expiration time) claim identifies the expiration time on
 	// or after which the JWT MUST NOT be accepted for processing.  The
 	// processing of the "exp" claim requires that the current date/time
 	// MUST be before the expiration date/time listed in the "exp" claim.
-	ExpiresAt time.Duration `mapstructure:"expires_at" validate:"required" json:"expiresAt"`
+	ExpiresAt time.Duration `mapstructure:"expires_at" validate:"required"`
 	// The "nbf" (not before) claim identifies the time before which the JWT
 	// MUST NOT be accepted for processing.  The processing of the "nbf"
 	// claim requires that the current date/time MUST be after or equal to
@@ -130,43 +147,69 @@ type JwtConfig struct {
 	// provide for some small leeway, usually no more than a few minutes, to
 	// account for clock skew.  Its value MUST be a number containing a
 	// NumericDate value.  Use of this claim is OPTIONAL.
-	NotBefore time.Duration `mapstructure:"not_before" validate:"min=0" json:"not_before"`
+	NotBefore time.Duration `mapstructure:"not_before" validate:"min=0"`
 	// Secret is the key that is used to sign the JWT.
-	Secret string `mapstructure:"secret" validate:"required,min=20" json:"-"`
+	Secret string `mapstructure:"secret" validate:"required,min=20"`
 }
 
 // Log contains the configuration about logging.
 type LogConfig struct {
 	// Level indicates the level the application should log at. Any levels greater than or equal to
 	// this will be logged. Log levels from least severe to highest: debug, info, warn, error
-	Level string `mapstructure:"level" validate:"required,oneof=debug info warn error" json:"level"`
+	Level string `mapstructure:"level" validate:"required,oneof=debug info warn error"`
 }
 
 // GraphqlConfig contains the configuration about GraphQL.
 type GraphqlConfig struct {
 	// Schema indicates where the schema.graphql file is located.
-	Schema string `mapstructure:"schema" validate:"required,file" json:"schema"`
+	Schema string `mapstructure:"schema" validate:"required,file"`
 }
 
-// DatabaseConfig contains the configuration about database connections.
+// DatabaseConfig contains the configuration about the Database.
 type DatabaseConfig struct {
-	// Driver indicates the database driver to be used.
-	Driver string `mapstructure:"driver" validate:"required" json:"driver"`
-	// Host indicates the host of the database server.
-	Host string `mapstructure:"host" validate:"required" json:"host"`
-	// Port indicates the port of the database server.
-	Port int `mapstructure:"port" validate:"required" json:"port"`
-	// Dbname indicates the name of the database.
-	Dbname string `mapstructure:"dbname" validate:"required" json:"dbname"`
-	// User indicates the username of the user you want to connect the database with.
-	User string `mapstructure:"user" validate:"required" json:"user"`
-	// Password indicates the password of the user you want to connect the database with.
-	Password string `mapstructure:"password" validate:"required" json:"-"`
+	// Migrations
+	Migrations string `mapstructure:"migrations" validate:"url"`
+	// Dev
+	Dev DatabaseConnectionConfig `mapstructure:"dev"`
+	// Test
+	Test DatabaseConnectionConfig `mapstructure:"test"`
+	// Models
+	Models struct {
+		Wipe              bool   `mapstructure:"wipe" validate:"required" toml:"wipe"`
+		Output            string `mapstructure:"output" validate:"" toml:"output"`
+		StructTagCasing   string `mapstructure:"struct-tag-casing" validate:"" toml:"struct-tag-casing"`
+		AddGlobalVariants bool   `mapstructure:"add-global-variants" validate:"" toml:"add-global-variants"`
+	} `mapstructure:"models"`
 }
 
-// DataSourceName returns the connection string in the format of "user=%s password=%s dbname=%s host=%s port=%d sslmode=disable"
-func (db *DatabaseConfig) DataSourceName() string {
-	return fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=disable", db.User, db.Password, db.Dbname, db.Host, db.Port)
+// DatabaseConnectionConfig contains the configuration about database connections.
+type DatabaseConnectionConfig struct {
+	// Driver indicates the database driver to be used.
+	Driver string `mapstructure:"driver" validate:"required" toml:"driver"`
+	// Host indicates the host of the database server.
+	Host string `mapstructure:"host" validate:"required" toml:"host"`
+	// Port indicates the port of the database server.
+	Port int `mapstructure:"port" validate:"required" toml:"port"`
+	// Dbname indicates the name of the database.
+	Dbname string `mapstructure:"dbname" validate:"required" toml:"dbname"`
+	// User indicates the username of the user you want to connect the database with.
+	User string `mapstructure:"user" validate:"required" toml:"user"`
+	// Password indicates the password of the user you want to connect the database with.
+	Password string `mapstructure:"password" validate:"required" toml:"pass"`
+	// Schema indicates the name of the schema you want to connect to.
+	Schema string `mapstructure:"schema" validate:"required" toml:"schema" toml:"schema"`
+	// Sslmode indicates the ssl mode you want to connect to the database with.
+	Sslmode string `mapstructure:"sslmode" validate:"required" toml:"sslmode" toml:"sslmode"`
+}
+
+// DataSourceName returns a connection string in the format of "user={user} password={password} dbname={dbname} host={host} port={port} sslmode={sslmode}"
+func (dcc *DatabaseConnectionConfig) DataSourceName() string {
+	return fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%d sslmode=%s", dcc.User, dcc.Password, dcc.Dbname, dcc.Host, dcc.Port, dcc.Sslmode)
+}
+
+// ConnectionString returns a connection string in the format of "{driver}://{user}:{password}@{host}:{port}/{dbname}?sslmode={sslmode}"
+func (dcc DatabaseConnectionConfig) ConnectionString() string {
+	return fmt.Sprintf("%s://%s:%s@%s:%d/%s?sslmode=%s", dcc.Driver, dcc.User, dcc.Password, dcc.Host, dcc.Port, dcc.Dbname, dcc.Sslmode)
 }
 
 // CoreConfig is used to implement the core.Configuration interface.
@@ -215,22 +258,45 @@ func (cfg *Config) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 			enc.AddString("notBefore", cfg.Server.Jwt.NotBefore.String())
 			return nil
 		}))
-		return nil
-	}))
-	_ = enc.AddObject("log", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
-		enc.AddString("level", cfg.Log.Level)
-		return nil
-	}))
-	_ = enc.AddObject("graphql", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
-		enc.AddString("schema", cfg.Graphql.Schema)
+		_ = enc.AddObject("log", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
+			enc.AddString("level", cfg.Server.Log.Level)
+			return nil
+		}))
+		_ = enc.AddObject("graphql", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
+			enc.AddString("schema", cfg.Server.Graphql.Schema)
+			return nil
+		}))
 		return nil
 	}))
 	_ = enc.AddObject("database", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
-		enc.AddString("driver", cfg.Database.Driver)
-		enc.AddString("dbname", cfg.Database.Dbname)
-		enc.AddString("host", cfg.Database.Host)
-		enc.AddInt("port", cfg.Database.Port)
-		enc.AddString("user", cfg.Database.User)
+		enc.AddString("migrations", cfg.Database.Migrations)
+		_ = enc.AddObject("dev", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
+			enc.AddString("driver", cfg.Database.Dev.Driver)
+			enc.AddString("dbname", cfg.Database.Dev.Dbname)
+			enc.AddString("host", cfg.Database.Dev.Host)
+			enc.AddInt("port", cfg.Database.Dev.Port)
+			enc.AddString("user", cfg.Database.Dev.User)
+			enc.AddString("schema", cfg.Database.Dev.Schema)
+			enc.AddString("sslmode", cfg.Database.Dev.Sslmode)
+			return nil
+		}))
+		_ = enc.AddObject("test", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
+			enc.AddString("driver", cfg.Database.Test.Driver)
+			enc.AddString("dbname", cfg.Database.Test.Dbname)
+			enc.AddString("host", cfg.Database.Test.Host)
+			enc.AddInt("port", cfg.Database.Test.Port)
+			enc.AddString("user", cfg.Database.Test.User)
+			enc.AddString("schema", cfg.Database.Test.Schema)
+			enc.AddString("sslmode", cfg.Database.Test.Sslmode)
+			return nil
+		}))
+		_ = enc.AddObject("models", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
+			enc.AddString("driver", cfg.Database.Models.Output)
+			enc.AddString("dbname", cfg.Database.Models.StructTagCasing)
+			enc.AddBool("host", cfg.Database.Models.AddGlobalVariants)
+			enc.AddBool("port", cfg.Database.Models.Wipe)
+			return nil
+		}))
 		return nil
 	}))
 	return nil
@@ -253,7 +319,7 @@ func LoadConfig(cfg Configuration) {
 		log.Fatal("you must pass the path to the config file using the -c argument")
 	}
 
-	if strings.HasPrefix(path, "gcloud:") {
+	if strings.HasPrefix(path, "gcloud://") {
 		// the path is a secret in google cloud's secret manager
 		ctx := context.Background()
 		client, err := secretmanager.NewClient(ctx)
@@ -261,8 +327,8 @@ func LoadConfig(cfg Configuration) {
 			log.Fatalf("failed to setup google cloud secret manager client: %v", err)
 		}
 
-		// remove the "gcloud:" prefix
-		req := &secretmanagerpb.AccessSecretVersionRequest{Name: path[7:]}
+		// remove the "gcloud://" prefix
+		req := &secretmanagerpb.AccessSecretVersionRequest{Name: path[9:]}
 		result, err := client.AccessSecretVersion(ctx, req)
 		if err != nil {
 			log.Fatalf("failed to access secret: %v", err)
@@ -295,7 +361,7 @@ func LoadConfig(cfg Configuration) {
 	// make absolute paths
 	coreCfg := cfg.CoreConfig()
 	coreCfg.Path = path
-	coreCfg.Graphql.Schema, err = filepath.Abs(coreCfg.Graphql.Schema)
+	coreCfg.Server.Graphql.Schema, err = filepath.Abs(coreCfg.Server.Graphql.Schema)
 	if err != nil {
 		log.Fatalf("failed to get absolute path to graphql schema: %v", err)
 	}

@@ -1,0 +1,41 @@
+name: Template
+
+on: [push]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:alpine
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_DB: test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.14
+
+      - name: Download dependencies
+        run: |
+          cd template/src
+          go mod download
+
+      - name: Migrate test database
+        run: |
+          cd template
+          ./core.sh --config ./core.example.toml migrate --only-test up
+
+      - name: Run tests
+        run: |
+          cd template/src
+          go test ./test/...

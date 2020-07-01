@@ -252,15 +252,15 @@ func Run(opts Options) {
 		logger.Fatal("ResolverContextDecorator must not be nil", "config", opts.Config)
 	}
 
-	if s.config.CoreConfig().Database.Driver != "" {
-		db, err := sql.Open(s.config.CoreConfig().Database.Driver, s.config.CoreConfig().Database.DataSourceName())
+	if s.config.CoreConfig().Database.Dev.Driver != "" {
+		db, err := sql.Open(s.config.CoreConfig().Database.Dev.Driver, s.config.CoreConfig().Database.Dev.DataSourceName())
 		if err != nil {
 			logger.Fatal("failed to open database connection", "error", err, "config", s.config)
 		}
 		s.db = db
 	}
 
-	bytes, err := ioutil.ReadFile(s.config.CoreConfig().Graphql.Schema)
+	bytes, err := ioutil.ReadFile(s.config.CoreConfig().Server.Graphql.Schema)
 	if err != nil {
 		s.logger.Fatal("failed to read graphql schema", "error", err, "config", s.config)
 	}

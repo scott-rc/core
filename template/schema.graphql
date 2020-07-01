@@ -1,0 +1,60 @@
+# scalars
+scalar Time
+
+# types
+type User {
+    email: String!
+    todos: [Todo]!
+}
+
+type Self {
+    email: String!
+    createdAt: Time!
+    updatedAt: Time!
+    todos: [Todo]!
+}
+
+type Todo {
+    todoId: Int!
+    title: String!
+    createdAt: Time!
+    updatedAt: Time!
+    completedAt: Time
+    user: User!
+}
+
+# query
+type Query {
+    todo(todoId: Int!): Todo!
+    todos(limit: Int, offset: Int): [Todo]!
+}
+
+# inputs
+input TodoCreateInput {
+    title: String!
+    completedAt: Time
+}
+
+input TodoUpdateInput {
+    todoId: Int!
+    title: String!
+    completedAt: Time
+}
+
+input SelfCreateInput {
+    email: String!
+    password: String!
+}
+
+input SelfAuthenticateInput {
+    email: String!
+    password: String!
+}
+
+# mutation
+type Mutation {
+    selfCreate(self: SelfCreateInput!): Self!
+    selfAuthenticate(credentials: SelfAuthenticateInput!): String!
+    todoCreate(todo: TodoCreateInput!): Todo!
+    todoUpdate(todo: TodoUpdateInput!): Todo!
+}

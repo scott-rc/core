@@ -1,0 +1,62 @@
+env = "development"
+
+[deploy]
+    [deploy.docker]
+    name = "template"
+
+    [deploy.gcloud]
+    service = ""
+    platform = ""
+    region = ""
+
+[server]
+port = 3001
+
+    [server.cors]
+    max_age = 0
+    allow_credentials = true
+    allowed_origins = ["*"]
+    allowed_methods = ["OPTIONS", "POST"]
+    allowed_headers = ["*"]
+
+    [server.jwt]
+    audience = ["*"]
+    issuer = "localhost"
+    expires_at = "168h"
+    not_before = "0s"
+    secret = "this_should_really_be_something_else"
+
+    [server.log]
+    level = "debug"
+
+    [server.graphql]
+    schema = "./schema.graphql"
+
+[database]
+migrations = "file://./database/migrations"
+
+    [database.dev]
+    driver = "postgres"
+    dbname = "dev"
+    user = "dev"
+    password = "dev"
+    host = "localhost"
+    port = 5432
+    schema = "public"
+    sslmode = "disable"
+
+    [database.test]
+    driver = "postgres"
+    dbname = "test"
+    user = "test"
+    password = "test"
+    host = "localhost"
+    port = 5432
+    schema = "public"
+    sslmode = "disable"
+
+    [database.models]
+    wipe = true
+    output = "./src/models"
+    struct-tag-casing = "camel"
+    add-global-variants = false

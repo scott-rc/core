@@ -43,8 +43,8 @@ func NewCore(t *testing.T, opts Options) *core.Core {
 	c.Context = opts.ResolverContextDecorator(context.WithValue(context.Background(), core.ContextKey, c))
 	require.NoError(t, c.StartSession())
 
-	if opts.Config.CoreConfig().Database.Driver != "" {
-		db, err := sql.Open(opts.Config.CoreConfig().Database.Driver, opts.Config.CoreConfig().Database.DataSourceName())
+	if opts.Config.CoreConfig().Database.Test.Driver != "" {
+		db, err := sql.Open(opts.Config.CoreConfig().Database.Test.Driver, opts.Config.CoreConfig().Database.Test.DataSourceName())
 		require.NoError(t, err)
 		c.Db = db
 	}
