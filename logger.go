@@ -42,7 +42,7 @@ type logger struct {
 }
 
 // newLogger
-func newLogger(cfg *Config) (Logger, error) {
+func newLogger(cfg *Config) Logger {
 	encoder := zapcore.EncoderConfig{
 		NameKey:       "logger",
 		MessageKey:    "message",
@@ -80,7 +80,7 @@ func newLogger(cfg *Config) (Logger, error) {
 		impl = impl.WithOptions(zap.Development())
 	}
 
-	return &logger{core: nil, impl: impl.Sugar()}, nil
+	return &logger{core: nil, impl: impl.Sugar()}
 }
 
 // Debug

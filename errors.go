@@ -10,16 +10,20 @@ import (
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
+	entranslations "github.com/go-playground/validator/v10/translations/en"
 	"go.uber.org/zap/zapcore"
 )
 
 var (
-	uni *ut.UniversalTranslator
+	uni      *ut.UniversalTranslator
+	validate *validator.Validate
 )
 
 func init() {
 	eng := en.New()
 	uni = ut.New(eng, eng)
+	validate = validator.New()
+	_ = entranslations.RegisterDefaultTranslations(validate, uni.GetFallback())
 }
 
 // ErrorDetailer is a function that takes a *core.Error so that it can add details to it.

@@ -12,10 +12,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-playground/validator/v10"
+
 	"github.com/go-chi/cors"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
-	"github.com/go-playground/validator/v10"
 	"github.com/spf13/viper"
 	"go.uber.org/zap/zapcore"
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
@@ -312,7 +313,7 @@ func (cfg *Config) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 // - the referenced struct is not valid
 func LoadConfig(cfg Configuration) {
 	var path string
-	flag.StringVar(&path, "c", "", "path to the config file")
+	flag.StringVar(&path, "config", "", "path to the config file")
 	flag.Parse()
 
 	if path == "" {
@@ -375,8 +376,12 @@ func LoadConfig(cfg Configuration) {
 		}
 	}
 
-	err = validator.New().Struct(cfg)
+	err = validate.Struct(cfg)
 	if err != nil {
-		log.Fatalf("config failed validation: %v", err)
+		fmt.Println("config failed validation")
+		for _, e := range err.(validator.ValidationErrors) {
+			fmt.Printf("  - %s: %s\n", e.StructNamespace(), e.Translate(uni.GetFallback()))
+		}
+		os.Exit(1)
 	}
 }

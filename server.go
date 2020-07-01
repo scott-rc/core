@@ -97,6 +97,7 @@ func (s *server) newCore(r *http.Request, operation string) (*Core, error) {
 		Db:         s.db,
 		Id:         id,
 		Operations: []string{operation},
+		Validate:   validate,
 
 		// set later
 		Context: nil,
@@ -149,7 +150,7 @@ func (s *server) setupRoutes() {
 		})
 	})
 
-	s.router.HandleFunc("/api", func(w http.ResponseWriter, r *http.Request) {
+	s.router.HandleFunc("/*", func(w http.ResponseWriter, r *http.Request) {
 		core, err := s.newCore(r, "server.handleGraphql")
 		response := newResponse(core, w)
 		if err != nil {
@@ -163,13 +164,26 @@ func (s *server) setupRoutes() {
 			Variables     map[string]interface{} `json:"variables"`
 		}
 
-		err = json.NewDecoder(r.Body).Decode(&request)
-		if err != nil {
-			response.writeError(err, KindInvalidJson)
-			return
+		if core.Request.Method == http.MethodGet {
+			request.Query = core.Request.URL.Query().Get("query")
+			request.OperationName = core.Request.URL.Query().Get("operationName")
+			vars := core.Request.URL.Query().Get("variables")
+			if vars != "" {
+				err = json.NewDecoder(strings.NewReader(vars)).Decode(&request.Variables)
+				if err != nil {
+					response.writeError(err, KindInvalidJson, "Your variables query parameter contains invalid JSON")
+					return
+				}
+			}
+		} else {
+			err = json.NewDecoder(core.Request.Body).Decode(&request)
+			if err != nil {
+				response.writeError(err, KindInvalidJson)
+				return
+			}
 		}
 
-		response.result = s.schema.Exec(r.Context(), request.Query, request.OperationName, request.Variables)
+		response.result = s.schema.Exec(core.Context, request.Query, request.OperationName, request.Variables)
 		if response.result.Errors != nil {
 			if len(response.result.Errors) == 0 {
 				core.Logger.DPanic("response contains an empty list of errors", "response", response)
@@ -223,10 +237,7 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Run
 func Run(opts Options) {
-	logger, err := newLogger(opts.Config.CoreConfig())
-	if err != nil {
-		log.Fatalf("failed to create logger: %v", err)
-	}
+	logger := newLogger(opts.Config.CoreConfig())
 
 	detail = opts.ErrorDetailer
 	if detail == nil {
