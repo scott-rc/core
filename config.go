@@ -46,22 +46,22 @@ type Config struct {
 	Server ServerConfig `mapstructure:"server" validate:"required"`
 	// Database contains the configuration about database connections.
 	// This is optional, if no database configuration is found, then no database connection is created.
-	Database DatabaseConfig `mapstructure:"database" validate:""`
+	Database DatabaseConfig `mapstructure:"database" validate:"-"`
 }
 
 type Deploy struct {
-	Docker DockerConfig `mapstructure:"docker"`
-	GCloud GCloudConfig `mapstructure:"gcloud"`
+	Docker DockerConfig `mapstructure:"docker" validate:"-"`
+	GCloud GCloudConfig `mapstructure:"gcloud" validate:"-"`
 }
 
 type DockerConfig struct {
-	Name string `mapstructure:"name"`
+	Name string `mapstructure:"name" validate:"-"`
 }
 
 type GCloudConfig struct {
-	Service  string `mapstructure:"service"`
-	Platform string `mapstructure:"platform"`
-	Region   string `mapstructure:"region"`
+	Service  string `mapstructure:"service" validate:"-"`
+	Platform string `mapstructure:"platform" validate:"-"`
+	Region   string `mapstructure:"region" validate:"-"`
 }
 
 // ServerConfig contains the configuration about the server.
@@ -172,9 +172,9 @@ type DatabaseConfig struct {
 	Migrations struct {
 		Location   string `mapstructure:"location" validate:"url"`
 		RunOnStart bool   `mapstructure:"run_on_start" validate:"required"`
-	} `mapstructure:"migrations" validate:""`
+	} `mapstructure:"migrations" validate:"-"`
 	// Main
-	Main DatabaseConnectionConfig `mapstructure:"main" validate:""`
+	Main DatabaseConnectionConfig `mapstructure:"main" validate:"-"`
 	// Test
 	Test DatabaseConnectionConfig `mapstructure:"test" validate:"-"`
 	// Models
@@ -182,7 +182,7 @@ type DatabaseConfig struct {
 		Wipe            bool   `mapstructure:"wipe" validate:"required" toml:"wipe"`
 		Output          string `mapstructure:"output" validate:"required" toml:"output"`
 		StructTagCasing string `mapstructure:"struct-tag-casing" validate:"required" toml:"struct-tag-casing"`
-	} `mapstructure:"models" validate:"required"`
+	} `mapstructure:"models" validate:"-"`
 }
 
 // DatabaseConnectionConfig contains the configuration about database connections.
