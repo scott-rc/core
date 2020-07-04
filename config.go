@@ -176,7 +176,7 @@ type DatabaseConfig struct {
 	// Main
 	Main DatabaseConnectionConfig `mapstructure:"main" validate:""`
 	// Test
-	Test DatabaseConnectionConfig `mapstructure:"test" validate:"omitempty"`
+	Test DatabaseConnectionConfig `mapstructure:"test" validate:"-"`
 	// Models
 	Models struct {
 		Wipe            bool   `mapstructure:"wipe" validate:"required" toml:"wipe"`
