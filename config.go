@@ -176,7 +176,7 @@ type DatabaseConfig struct {
 	// Main
 	Main DatabaseConnectionConfig `mapstructure:"main" validate:""`
 	// Test
-	Test DatabaseConnectionConfig `mapstructure:"test" validate:""`
+	Test DatabaseConnectionConfig `mapstructure:"test" validate:"omitempty"`
 	// Models
 	Models struct {
 		Wipe            bool   `mapstructure:"wipe" validate:"required" toml:"wipe"`
@@ -309,7 +309,7 @@ func (cfg *Config) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 }
 
 // LoadConfig takes a reference to a struct that contains a core.Config.
-// It uses the -c flag to locate the configuration file and maps it to the referenced struct using viper.
+// It uses the --config flag to locate the configuration file and maps it to the referenced struct using viper.
 //
 // If any of the following occurs, it terminates the application with a fatal error:
 // - config flag not provided
@@ -322,7 +322,7 @@ func LoadConfig(cfg Configuration) {
 	flag.Parse()
 
 	if path == "" {
-		log.Fatal("you must pass the path to the config file using the -c argument")
+		log.Fatal("you must pass the path to the config file using the --config argument")
 	}
 
 	if strings.HasPrefix(path, "gcloud://") {
