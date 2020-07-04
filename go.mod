@@ -7,6 +7,7 @@ require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/DATA-DOG/go-txdb v0.1.3 // indirect
 	github.com/briandowns/spinner v1.11.1
+	github.com/bxcodec/faker/v3 v3.5.0 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/fatih/color v1.7.0
 	github.com/friendsofgo/errors v0.9.2

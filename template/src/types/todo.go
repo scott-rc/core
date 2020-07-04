@@ -25,7 +25,7 @@ func NewTodoTypes(core *app.Core, todos []*models.Todo) []*TodoType {
 	return res
 }
 
-func (t *TodoType) TodoId() int32 {
+func (t *TodoType) Id() int32 {
 	return int32(t.todo.TodoID)
 }
 
@@ -62,7 +62,7 @@ type TodoCreateInputType struct {
 }
 
 type TodoUpdateInputType struct {
-	TodoId      int32  `validate:"required,min=1"`
+	Id          int32  `validate:"required,min=1"`
 	Title       string `validate:"required"`
 	CompletedAt *graphql.Time
 }

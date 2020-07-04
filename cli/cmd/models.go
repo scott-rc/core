@@ -24,7 +24,7 @@ var modelsCommand = &cobra.Command{
 		fatalIf(err)
 
 		err = toml.NewEncoder(file).Encode(map[string]interface{}{
-			"psql": config.Database.Dev,
+			"psql": config.Database.Main,
 		})
 		fatalIf(err)
 

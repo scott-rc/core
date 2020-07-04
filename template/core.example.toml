@@ -13,10 +13,10 @@ env = "development"
 port = 3001
 
     [server.cors]
-    max_age = 0
+    max_age = 3600
     allow_credentials = true
     allowed_origins = ["*"]
-    allowed_methods = ["OPTIONS", "POST"]
+    allowed_methods = ["OPTIONS", "GET", "POST"]
     allowed_headers = ["*"]
 
     [server.jwt]
@@ -33,9 +33,7 @@ port = 3001
     schema = "./schema.graphql"
 
 [database]
-migrations = "file://./database/migrations"
-
-    [database.dev]
+    [database.main]
     driver = "postgres"
     dbname = "dev"
     user = "dev"
@@ -55,8 +53,11 @@ migrations = "file://./database/migrations"
     schema = "public"
     sslmode = "disable"
 
+    [database.migrations]
+    location = "file://./database/migrations"
+    run_on_start = true
+
     [database.models]
     wipe = true
     output = "./src/models"
     struct-tag-casing = "camel"
-    add-global-variants = false

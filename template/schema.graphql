@@ -15,7 +15,7 @@ type Self {
 }
 
 type Todo {
-    todoId: Int!
+    id: Int!
     title: String!
     createdAt: Time!
     updatedAt: Time!
@@ -25,7 +25,7 @@ type Todo {
 
 # query
 type Query {
-    todo(todoId: Int!): Todo!
+    todo(id: Int!): Todo!
     todos(limit: Int, offset: Int): [Todo]!
 }
 
@@ -36,7 +36,7 @@ input TodoCreateInput {
 }
 
 input TodoUpdateInput {
-    todoId: Int!
+    id: Int!
     title: String!
     completedAt: Time
 }

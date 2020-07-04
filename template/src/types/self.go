@@ -16,7 +16,7 @@ func NewSelfType(ctx *app.Core, user *models.User) *SelfType {
 	return &SelfType{core: ctx, user: user}
 }
 
-func (s *SelfType) UserId() int32 {
+func (s *SelfType) Id() int32 {
 	return int32(s.user.UserID)
 }
 

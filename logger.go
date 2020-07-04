@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"os"
 
 	"go.uber.org/zap"
@@ -33,12 +34,17 @@ type Logger interface {
 	Clone() Logger
 	// Close
 	Close() error
+	// Printf
+	Printf(string, ...interface{})
+	// Verbose
+	Verbose() bool
 }
 
 // logger
 type logger struct {
-	core *Core
-	impl *zap.SugaredLogger
+	core  *Core
+	impl  *zap.SugaredLogger
+	level zapcore.Level
 }
 
 // newLogger
@@ -80,7 +86,7 @@ func newLogger(cfg *Config) Logger {
 		impl = impl.WithOptions(zap.Development())
 	}
 
-	return &logger{core: nil, impl: impl.Sugar()}
+	return &logger{core: nil, impl: impl.Sugar(), level: level}
 }
 
 // Debug
@@ -159,4 +165,15 @@ func (l *logger) Clone() Logger {
 // Close
 func (l *logger) Close() error {
 	return l.impl.Sync()
+}
+
+// Printf
+func (l *logger) Printf(format string, v ...interface{}) {
+	content := fmt.Sprintf(format, v...)
+	l.Info(content)
+}
+
+// Verbose
+func (l *logger) Verbose() bool {
+	return l.level == zapcore.DebugLevel
 }

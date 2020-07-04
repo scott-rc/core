@@ -1,6 +1,7 @@
 package core
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -40,9 +41,10 @@ func DefaultErrorDetailer(e *Error) {
 		e.Kind = KindInvalidJwt
 		e.Details = append(e.Details, err.Error())
 	default:
-		message := e.Cause.Error()
 		switch {
-		case strings.Contains(message, "models"):
+		case e.Cause == sql.ErrNoRows:
+			e.Kind = KindRowNotFound
+		case strings.Contains(e.Cause.Error(), "models"):
 			e.Kind = KindDatabase
 		}
 	}
@@ -78,6 +80,8 @@ var (
 
 	// KindRouteNotFound
 	KindRouteNotFound = ErrorKind{404_000, "Not Found", "The requested url does not exist", zapcore.DebugLevel}
+	// KindRouteNotFound
+	KindRowNotFound = ErrorKind{404_001, "Not Found", "The requested resource was not found", zapcore.DebugLevel}
 
 	// KindMethodNotAllowed
 	KindMethodNotAllowed = ErrorKind{405_000, "Method Not Allowed", "The requested url does not support that HTTP method", zapcore.DebugLevel}
@@ -135,6 +139,7 @@ func NewError(core *Core, err error, overrides ...interface{}) Error {
 	if kind, ok := err.(ErrorKind); ok {
 		// err is an ErrorKind, replace the kind
 		e.Kind = kind
+		e.Message = kind.Message
 	}
 
 	for _, override := range overrides {

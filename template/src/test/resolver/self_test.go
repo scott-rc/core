@@ -33,7 +33,7 @@ func (s *selfResolverTestSuite) Test_SelfCreate() {
 		Self: expected,
 	})
 	s.NoError(err)
-	user, err := models.FindUser(s.Core.Context, s.Core.Db, int(self.UserId()))
+	user, err := models.FindUser(s.Core.Context, s.Core.Db, int(self.Id()))
 	s.NoError(err)
 
 	// assert

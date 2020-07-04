@@ -37,7 +37,11 @@ func (s *todoResolverTestSuite) Test_TodoInsert() {
 	// assert
 	s.NoError(err)
 	s.Equal(todo.Title, result.Title())
-	s.Equal(todo.CompletedAt.Time, result.CompletedAt().Time)
+	if todo.CompletedAt.Valid {
+		s.Equal(todo.CompletedAt.Time, result.CompletedAt().Time)
+	} else {
+		s.Nil(result.CompletedAt())
+	}
 }
 
 func (s *todoResolverTestSuite) Test_TodoInsert_Validation() {
@@ -66,7 +70,7 @@ func (s *todoResolverTestSuite) Test_TodoUpdate() {
 	s.SignIn(nil)
 	todo := s.Factory.CreateTodo(map[string]interface{}{models.UserColumns.UserID: s.User.UserID})
 	expected := types.TodoUpdateInputType{
-		TodoId:      int32(todo.TodoID),
+		Id:          int32(todo.TodoID),
 		Title:       faker.Paragraph(),
 		CompletedAt: s.Factory.ToGraphqlTime(time.Now()),
 	}
@@ -91,9 +95,9 @@ func (s *todoResolverTestSuite) Test_TodoUpdate_Validation() {
 	s.SignIn(nil)
 	s.Factory.CreateTodo(map[string]interface{}{models.TodoColumns.UserID: s.User.UserID})
 	badInputs := []types.TodoUpdateInputType{
-		{TodoId: 0, Title: "", CompletedAt: nil},
-		{TodoId: 0, Title: faker.Paragraph(), CompletedAt: s.Factory.NillableGraphqlTime(time.Now())},
-		{TodoId: 1, Title: "", CompletedAt: s.Factory.NillableGraphqlTime(time.Now())},
+		{Id: 0, Title: "", CompletedAt: nil},
+		{Id: 0, Title: faker.Paragraph(), CompletedAt: s.Factory.NillableGraphqlTime(time.Now())},
+		{Id: 1, Title: "", CompletedAt: s.Factory.NillableGraphqlTime(time.Now())},
 	}
 
 	for _, input := range badInputs {

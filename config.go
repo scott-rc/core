@@ -169,18 +169,20 @@ type GraphqlConfig struct {
 // DatabaseConfig contains the configuration about the Database.
 type DatabaseConfig struct {
 	// Migrations
-	Migrations string `mapstructure:"migrations" validate:"url"`
-	// Dev
-	Dev DatabaseConnectionConfig `mapstructure:"dev"`
+	Migrations struct {
+		Location   string `mapstructure:"location" validate:"url"`
+		RunOnStart bool   `mapstructure:"run_on_start" validate:"required"`
+	} `mapstructure:"migrations" validate:""`
+	// Main
+	Main DatabaseConnectionConfig `mapstructure:"main" validate:""`
 	// Test
-	Test DatabaseConnectionConfig `mapstructure:"test"`
+	Test DatabaseConnectionConfig `mapstructure:"test" validate:""`
 	// Models
 	Models struct {
-		Wipe              bool   `mapstructure:"wipe" validate:"required" toml:"wipe"`
-		Output            string `mapstructure:"output" validate:"" toml:"output"`
-		StructTagCasing   string `mapstructure:"struct-tag-casing" validate:"" toml:"struct-tag-casing"`
-		AddGlobalVariants bool   `mapstructure:"add-global-variants" validate:"" toml:"add-global-variants"`
-	} `mapstructure:"models"`
+		Wipe            bool   `mapstructure:"wipe" validate:"required" toml:"wipe"`
+		Output          string `mapstructure:"output" validate:"required" toml:"output"`
+		StructTagCasing string `mapstructure:"struct-tag-casing" validate:"required" toml:"struct-tag-casing"`
+	} `mapstructure:"models" validate:"required"`
 }
 
 // DatabaseConnectionConfig contains the configuration about database connections.
@@ -270,15 +272,19 @@ func (cfg *Config) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 		return nil
 	}))
 	_ = enc.AddObject("database", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
-		enc.AddString("migrations", cfg.Database.Migrations)
-		_ = enc.AddObject("dev", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
-			enc.AddString("driver", cfg.Database.Dev.Driver)
-			enc.AddString("dbname", cfg.Database.Dev.Dbname)
-			enc.AddString("host", cfg.Database.Dev.Host)
-			enc.AddInt("port", cfg.Database.Dev.Port)
-			enc.AddString("user", cfg.Database.Dev.User)
-			enc.AddString("schema", cfg.Database.Dev.Schema)
-			enc.AddString("sslmode", cfg.Database.Dev.Sslmode)
+		_ = enc.AddObject("migrations", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
+			enc.AddString("location", cfg.Database.Migrations.Location)
+			enc.AddBool("run_on_start", cfg.Database.Migrations.RunOnStart)
+			return nil
+		}))
+		_ = enc.AddObject("main", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
+			enc.AddString("driver", cfg.Database.Main.Driver)
+			enc.AddString("dbname", cfg.Database.Main.Dbname)
+			enc.AddString("host", cfg.Database.Main.Host)
+			enc.AddInt("port", cfg.Database.Main.Port)
+			enc.AddString("user", cfg.Database.Main.User)
+			enc.AddString("schema", cfg.Database.Main.Schema)
+			enc.AddString("sslmode", cfg.Database.Main.Sslmode)
 			return nil
 		}))
 		_ = enc.AddObject("test", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
@@ -292,10 +298,9 @@ func (cfg *Config) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 			return nil
 		}))
 		_ = enc.AddObject("models", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
-			enc.AddString("driver", cfg.Database.Models.Output)
-			enc.AddString("dbname", cfg.Database.Models.StructTagCasing)
-			enc.AddBool("host", cfg.Database.Models.AddGlobalVariants)
-			enc.AddBool("port", cfg.Database.Models.Wipe)
+			enc.AddString("output", cfg.Database.Models.Output)
+			enc.AddString("struct-tag-casing", cfg.Database.Models.StructTagCasing)
+			enc.AddBool("wipe", cfg.Database.Models.Wipe)
 			return nil
 		}))
 		return nil

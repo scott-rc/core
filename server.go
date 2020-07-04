@@ -11,6 +11,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/golang-migrate/migrate/v4"
+
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/cors"
@@ -131,7 +133,6 @@ func (s *server) newCore(r *http.Request, operation string) (*Core, error) {
 // routes
 func (s *server) setupRoutes() {
 	s.router.Use(middleware.RealIP)
-	s.router.Use(middleware.StripSlashes)
 	s.router.Use(cors.New(s.config.CoreConfig().Server.corsOptions()).Handler)
 	s.router.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -263,12 +264,26 @@ func Run(opts Options) {
 		logger.Fatal("ResolverContextDecorator must not be nil", "config", opts.Config)
 	}
 
-	if s.config.CoreConfig().Database.Dev.Driver != "" {
-		db, err := sql.Open(s.config.CoreConfig().Database.Dev.Driver, s.config.CoreConfig().Database.Dev.DataSourceName())
+	if s.config.CoreConfig().Database.Main.Driver != "" {
+		db, err := sql.Open(s.config.CoreConfig().Database.Main.Driver, s.config.CoreConfig().Database.Main.DataSourceName())
 		if err != nil {
 			logger.Fatal("failed to open database connection", "error", err, "config", s.config)
 		}
 		s.db = db
+
+		if s.config.CoreConfig().Database.Migrations.RunOnStart {
+			logger.Info("running database migrations (database.migrations.run_on_start = true)", "config", s.config)
+			m, err := migrate.New(s.config.CoreConfig().Database.Migrations.Location, s.config.CoreConfig().Database.Main.ConnectionString())
+			if err != nil {
+				s.logger.Fatal("failed to create an instance of Migrate", "error", err, "config", s.config)
+			}
+			m.Log = logger
+
+			err = m.Up()
+			if err != nil && err.Error() != "no change" {
+				s.logger.Fatal("failed to migrate main database", "error", err, "config", s.config)
+			}
+		}
 	}
 
 	bytes, err := ioutil.ReadFile(s.config.CoreConfig().Server.Graphql.Schema)

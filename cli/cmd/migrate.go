@@ -32,9 +32,9 @@ var (
 )
 
 func init() {
-	migrateCommand.Flags().StringVarP(&migrations, "migrations", "m", config.Database.Migrations, "migrations source")
-	migrateCommand.Flags().StringVarP(&connection, "connection", "c", config.Database.Dev.ConnectionString(), "database connection")
-	migrateCommand.Flags().BoolVarP(&both, "both", "", false, "migrate using the database connection and test database connection")
+	migrateCommand.Flags().StringVarP(&migrations, "migrations", "m", config.Database.Migrations.Location, "migrations source")
+	migrateCommand.Flags().StringVarP(&connection, "connection", "c", config.Database.Main.ConnectionString(), "main database connection")
+	migrateCommand.Flags().BoolVarP(&both, "both", "", false, "migrate using the main database connection and test database connection")
 	migrateCommand.Flags().StringVarP(&testConnection, "test-connection", "t", config.Database.Test.ConnectionString(), "test database connection")
 	migrateCommand.Flags().BoolVarP(&onlyTest, "only-test", "", false, "only migrate using the test database connection")
 	migrateCommand.AddCommand(upCommand, downCommand, createCommand)
@@ -126,7 +126,7 @@ func _migrate(dir direction, cmd *cobra.Command, args []string) {
 		m.Log = l
 
 		if both {
-			fmt.Println("migrating dev database")
+			fmt.Println("migrating main database")
 		}
 		impl(m, dir, args)
 	}

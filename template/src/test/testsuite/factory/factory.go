@@ -42,7 +42,10 @@ func (f *Factory) ToGraphqlTime(x interface{}) *graphql.Time {
 	case time.Time:
 		return &graphql.Time{Time: t}
 	case null.Time:
-		return &graphql.Time{Time: t.Time}
+		if t.Valid {
+			return &graphql.Time{Time: t.Time}
+		}
+		return nil
 	default:
 		f.assert.FailNow("expected a time type", "x", x)
 	}

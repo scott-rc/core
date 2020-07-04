@@ -3,6 +3,7 @@ package coretest
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net/http/httptest"
 	"testing"
 
@@ -119,4 +120,13 @@ func (t testLogger) Clone() core.Logger {
 
 func (t testLogger) Close() error {
 	return nil
+}
+
+func (t testLogger) Printf(format string, v ...interface{}) {
+	content := fmt.Sprintf(format, v...)
+	t.Info(content)
+}
+
+func (t testLogger) Verbose() bool {
+	return true
 }

@@ -2,8 +2,11 @@ package resolver
 
 import (
 	"context"
+	"database/sql"
 	"template/models"
 	"template/types"
+
+	"github.com/scott-rc/core"
 
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"golang.org/x/crypto/bcrypt"
@@ -40,12 +43,15 @@ func (r *Resolver) SelfAuthenticate(ctx context.Context, args *struct {
 	c := r.core(ctx, "resolver.SelfAuthenticate")
 	user, err := models.Users(qm.Where("email = ?", args.Credentials.Email)).One(c.Context, c.Db)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", core.NewError(c.Core, err, "The given email or password was incorrect")
+		}
 		return "", err
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(args.Credentials.Password))
 	if err != nil {
-		return "", err
+		return "", core.NewError(c.Core, err, "The given email or password was incorrect")
 	}
 
 	c.Session.SetUserId(user.UserID)
