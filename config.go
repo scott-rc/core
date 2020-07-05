@@ -212,7 +212,7 @@ func (dcc *DatabaseConnectionConfig) DataSourceName() string {
 
 // ConnectionString returns a connection string in the format of "{driver}://{user}:{password}@{host}:{port}/{dbname}?sslmode={sslmode}"
 func (dcc DatabaseConnectionConfig) ConnectionString() string {
-	return fmt.Sprintf("%s://%s:%s@%s:%d/%s?sslmode=%s", dcc.Driver, dcc.User, dcc.Password, dcc.Host, dcc.Port, dcc.Dbname, dcc.Sslmode)
+	return fmt.Sprintf("%s://%s:%s@:%d/%s?host=%s&sslmode=%s", dcc.Driver, dcc.User, dcc.Password, dcc.Port, dcc.Dbname, dcc.Host, dcc.Sslmode)
 }
 
 // CoreConfig is used to implement the core.Configuration interface.
