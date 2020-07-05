@@ -27,5 +27,8 @@ COPY --from=builder /app/server ./server
 # Copy the graphql schema.
 COPY ./schema.graphql ./schema.graphql
 
+# Copy databse migrations.
+COPY ./database/migrations ./database/migrations
+
 # Run the web service on container startup.
 ENTRYPOINT ["./server"]
