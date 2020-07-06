@@ -48,6 +48,7 @@ func (r *response) write() {
 	if r.result == nil {
 		r.core.Logger.DPanic("response.Result is nil", "response", r)
 		r.writeError(KindUnknown)
+		return
 	}
 
 	r.result.Extensions = r.core.Extensions()
@@ -95,11 +96,11 @@ func (s *server) newCore(r *http.Request, operation string) (*Core, error) {
 	id, _ := nanoid.Nanoid()
 
 	core := &Core{
-		Config:     s.config,
-		Db:         s.db,
 		Id:         id,
 		Operations: []string{operation},
 		Validate:   validate,
+		Config:     s.config,
+		Db:         s.db,
 
 		// set later
 		Context: nil,
@@ -159,50 +160,45 @@ func (s *server) setupRoutes() {
 			return
 		}
 
-		var request struct {
+		var graphqlRequest struct {
 			Query         string                 `json:"query"`
 			OperationName string                 `json:"operationName"`
 			Variables     map[string]interface{} `json:"variables"`
 		}
 
 		if core.Request.Method == http.MethodGet {
-			request.Query = core.Request.URL.Query().Get("query")
-			request.OperationName = core.Request.URL.Query().Get("operationName")
+			graphqlRequest.Query = core.Request.URL.Query().Get("query")
+			graphqlRequest.OperationName = core.Request.URL.Query().Get("operationName")
 			vars := core.Request.URL.Query().Get("variables")
 			if vars != "" {
-				err = json.NewDecoder(strings.NewReader(vars)).Decode(&request.Variables)
+				err = json.NewDecoder(strings.NewReader(vars)).Decode(&graphqlRequest.Variables)
 				if err != nil {
 					response.writeError(err, KindInvalidJson, "Your variables query parameter contains invalid JSON")
 					return
 				}
 			}
 		} else {
-			err = json.NewDecoder(core.Request.Body).Decode(&request)
+			err = json.NewDecoder(core.Request.Body).Decode(&graphqlRequest)
 			if err != nil {
 				response.writeError(err, KindInvalidJson)
 				return
 			}
 		}
 
-		response.result = s.schema.Exec(core.Context, request.Query, request.OperationName, request.Variables)
+		response.result = s.schema.Exec(core.Context, graphqlRequest.Query, graphqlRequest.OperationName, graphqlRequest.Variables)
 		if response.result.Errors != nil {
-			if len(response.result.Errors) == 0 {
-				core.Logger.DPanic("response contains an empty list of errors", "response", response)
-				response.status = http.StatusInternalServerError
-			} else {
-				// convert any errors to Error
-				for _, err := range response.result.Errors {
-					if err.ResolverError != nil {
-						e := NewError(core, err.ResolverError)
-						err.Extensions = e.Extensions()
-						err.Message = e.Error()
-						err.ResolverError = e
-						response.status = e.HttpStatus()
-					} else {
-						// an error occurred before the resolver was called
-						// most likely a query validation error
-						response.status = http.StatusBadRequest
-					}
+			// convert any errors to Error
+			for _, err := range response.result.Errors {
+				if err.ResolverError != nil {
+					e := NewError(core, err.ResolverError)
+					err.Extensions = e.Extensions()
+					err.Message = e.Error()
+					err.ResolverError = e
+					response.status = e.HttpStatus()
+				} else {
+					// an error occurred before the resolver was called
+					// most likely a query validation error
+					response.status = http.StatusBadRequest
 				}
 			}
 		}
