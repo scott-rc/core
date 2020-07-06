@@ -71,7 +71,7 @@ var (
 	// KindInvalidJson
 	KindInvalidJson = ErrorKind{400_000, "Invalid JSON", "Your request body contains invalid JSON", zapcore.InfoLevel}
 	// KindStructValidation
-	KindStructValidation = ErrorKind{Code: 400_001, Title: "Bad Data", Message: "You're payload contains invalid data", Severity: zapcore.InfoLevel}
+	KindStructValidation = ErrorKind{Code: 400_001, Title: "Bad Data", Message: "Your payload contains invalid data", Severity: zapcore.InfoLevel}
 
 	// KindUnauthorized
 	KindUnauthorized = ErrorKind{Code: 401_100, Title: "Unauthorized", Message: "You're not authorized to perform that action", Severity: zapcore.InfoLevel}

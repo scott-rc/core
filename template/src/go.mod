@@ -19,7 +19,7 @@ require (
 	github.com/mitchellh/mapstructure v1.3.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
-	github.com/scott-rc/core v0.0.0-20200704082217-a2bddbcea0f3
+	github.com/scott-rc/core v0.0.0-20200705042659-4f1e5b3ac7d9
 	github.com/sirupsen/logrus v1.6.0 // indirect
 	github.com/smartystreets/assertions v1.1.1 // indirect
 	github.com/spf13/afero v1.3.1 // indirect

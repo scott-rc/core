@@ -455,6 +455,8 @@ github.com/scott-rc/core v0.0.0-20200704081400-3a7a1f82a227 h1:AWYxJm84wLE47MJuO
 github.com/scott-rc/core v0.0.0-20200704081400-3a7a1f82a227/go.mod h1:Dl8E9n9qaK7TAxAP/jVXJfubZXQEyfDctkpTC++Ex8c=
 github.com/scott-rc/core v0.0.0-20200704082217-a2bddbcea0f3 h1:HosKmSUmoQ9cnybJ1hU6pUQv+wei9Pv8iNxraZa+TsU=
 github.com/scott-rc/core v0.0.0-20200704082217-a2bddbcea0f3/go.mod h1:Yjf/Sr5tLPmib6ZD+F6DDUkVaDJtqg75vRc191xThDU=
+github.com/scott-rc/core v0.0.0-20200705042659-4f1e5b3ac7d9 h1:iB9VN+IWW81cZxkswtanXz46muwDMF7aPFXX6Aru7to=
+github.com/scott-rc/core v0.0.0-20200705042659-4f1e5b3ac7d9/go.mod h1:Yjf/Sr5tLPmib6ZD+F6DDUkVaDJtqg75vRc191xThDU=
 github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529/go.mod h1:DxrIzT+xaE7yg65j358z/aeFdxmN0P9QXhEzd20vsDc=
 github.com/shopspring/decimal v0.0.0-20180709203117-cd690d0c9e24/go.mod h1:M+9NzErvs504Cn4c5DxATwIqPbtswREoFCre64PpcG4=
 github.com/shurcooL/sanitized_anchor_name v1.0.0/go.mod h1:1NzhyTcUVG4SuEtjjoZeVRXNmyL/1OwPU0+IJeTBvfc=
