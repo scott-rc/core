@@ -13,7 +13,7 @@ require (
 	github.com/graph-gophers/graphql-go v0.0.0-20200622220639-c1d9693c95a6
 	github.com/kat-co/vala v0.0.0-20170210184112-42e1d8b61f12
 	github.com/lib/pq v1.7.0
-	github.com/scott-rc/core v0.0.0-20200705042659-4f1e5b3ac7d9
+	github.com/scott-rc/core v0.0.0-20200729224134-130b644925c1
 	github.com/spf13/viper v1.7.0
 	github.com/stretchr/testify v1.6.1
 	github.com/volatiletech/null/v8 v8.1.0

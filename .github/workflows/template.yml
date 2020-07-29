@@ -57,9 +57,9 @@ jobs:
         uses: docker/build-push-action@v1
         with:
           username: _json_key
-          password: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          password: ${{ secrets.GCP_CONTAINER_REGISTRY_SERVICE_ACCOUNT_KEY }}
           registry: gcr.io
-          repository: gcr.io/${{ secrets.GCP_PROJECT_ID }}/core
+          repository: ${{ secrets.GCP_PROJECT_ID }}/core
           tag_with_ref: true
           tag_with_sha: true
           path: ./template
@@ -74,7 +74,7 @@ jobs:
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
         with:
           version: ${{ secrets.GCP_GCLOUD_VERSION }}
-          service_account_key: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          service_account_key: ${{ secrets.GCP_CLOUD_RUN_SERVICE_ACCOUNT_KEY }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
       - name: Deploy
         run: |
