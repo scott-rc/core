@@ -40,28 +40,11 @@ type Config struct {
 	Path string `mapstructure:"-" validate:"-"`
 	// Env indicates the current environment of the application (development, staging, production).
 	Env string `mapstructure:"env" validate:"required,oneof=development staging production"`
-	// Deploy
-	Deploy Deploy `mapstructure:"deploy" validate:"required"`
 	// Server contains the configuration about the server.
 	Server ServerConfig `mapstructure:"server" validate:"required"`
 	// Database contains the configuration about database connections.
 	// This is optional, if no database configuration is found, then no database connection is created.
-	Database DatabaseConfig `mapstructure:"database" validate:"-"`
-}
-
-type Deploy struct {
-	Docker DockerConfig `mapstructure:"docker" validate:"-"`
-	GCloud GCloudConfig `mapstructure:"gcloud" validate:"-"`
-}
-
-type DockerConfig struct {
-	Name string `mapstructure:"name" validate:"-"`
-}
-
-type GCloudConfig struct {
-	Service  string `mapstructure:"service" validate:"-"`
-	Platform string `mapstructure:"platform" validate:"-"`
-	Region   string `mapstructure:"region" validate:"-"`
+	Database DatabaseConfig `mapstructure:"database" validate:""`
 }
 
 // ServerConfig contains the configuration about the server.
@@ -172,17 +155,17 @@ type DatabaseConfig struct {
 	Migrations struct {
 		Location   string `mapstructure:"location" validate:"url"`
 		RunOnStart bool   `mapstructure:"run_on_start" validate:"required"`
-	} `mapstructure:"migrations" validate:"-"`
+	} `mapstructure:"migrations" validate:"required"`
 	// Main
-	Main DatabaseConnectionConfig `mapstructure:"main" validate:"-"`
+	Main DatabaseConnectionConfig `mapstructure:"main" validate:"required"`
 	// Test
-	Test DatabaseConnectionConfig `mapstructure:"test" validate:"-"`
+	Test DatabaseConnectionConfig `mapstructure:"test" validate:""`
 	// Models
 	Models struct {
 		Wipe            bool   `mapstructure:"wipe" validate:"required" toml:"wipe"`
 		Output          string `mapstructure:"output" validate:"required" toml:"output"`
 		StructTagCasing string `mapstructure:"struct-tag-casing" validate:"required" toml:"struct-tag-casing"`
-	} `mapstructure:"models" validate:"-"`
+	} `mapstructure:"models" validate:"required"`
 }
 
 // DatabaseConnectionConfig contains the configuration about database connections.

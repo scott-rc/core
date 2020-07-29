@@ -84,8 +84,11 @@ func fatal(err error) {
 	os.Exit(1)
 }
 
-func fatalIf(err error) {
+func fatalIf(err error, defers ...func()) {
 	if err != nil {
+		for _, f := range defers {
+			f()
+		}
 		fatal(err)
 	}
 }
