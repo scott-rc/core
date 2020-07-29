@@ -44,14 +44,14 @@ func (r *Resolver) SelfAuthenticate(ctx context.Context, args *struct {
 	user, err := models.Users(qm.Where("email = ?", args.Credentials.Email)).One(c.Context, c.Db)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", core.NewError(c.Core, err, "The given email or password was incorrect")
+			err = core.NewError(c.Core, err, core.KindInvalidCredentials)
 		}
 		return "", err
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(args.Credentials.Password))
 	if err != nil {
-		return "", core.NewError(c.Core, err, "The given email or password was incorrect")
+		return "", core.NewError(c.Core, err, core.KindInvalidCredentials)
 	}
 
 	c.Session.SetUserId(user.UserID)

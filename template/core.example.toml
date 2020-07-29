@@ -1,14 +1,5 @@
 env = "development"
 
-[deploy]
-    [deploy.docker]
-    name = "template"
-
-    [deploy.gcloud]
-    service = ""
-    platform = ""
-    region = ""
-
 [server]
 port = 3001
 

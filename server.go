@@ -25,6 +25,13 @@ var (
 	projectId = os.Getenv("GOOGLE_CLOUD_PROJECT")
 )
 
+// request
+type request struct {
+	Query         string                 `json:"query"`
+	OperationName string                 `json:"operationName"`
+	Variables     map[string]interface{} `json:"variables"`
+}
+
 // response
 type response struct {
 	w      http.ResponseWriter
@@ -152,58 +159,74 @@ func (s *server) setupRoutes() {
 		})
 	})
 
-	s.router.HandleFunc("/*", func(w http.ResponseWriter, r *http.Request) {
-		core, err := s.newCore(r, "server.handleGraphql")
-		response := newResponse(core, w)
-		if err != nil {
-			response.writeError(err)
-			return
-		}
-
-		var graphqlRequest struct {
-			Query         string                 `json:"query"`
-			OperationName string                 `json:"operationName"`
-			Variables     map[string]interface{} `json:"variables"`
-		}
-
-		if core.Request.Method == http.MethodGet {
-			graphqlRequest.Query = core.Request.URL.Query().Get("query")
-			graphqlRequest.OperationName = core.Request.URL.Query().Get("operationName")
-			vars := core.Request.URL.Query().Get("variables")
-			if vars != "" {
-				err = json.NewDecoder(strings.NewReader(vars)).Decode(&graphqlRequest.Variables)
-				if err != nil {
-					response.writeError(err, KindInvalidJson, "Your variables query parameter contains invalid JSON")
-					return
-				}
-			}
-		} else {
-			err = json.NewDecoder(core.Request.Body).Decode(&graphqlRequest)
-			if err != nil {
-				response.writeError(err, KindInvalidJson)
-				return
-			}
-		}
-
-		response.result = s.schema.Exec(core.Context, graphqlRequest.Query, graphqlRequest.OperationName, graphqlRequest.Variables)
-		if response.result.Errors != nil {
+	execute := func(core *Core, req request, res response) {
+		res.result = s.schema.Exec(core.Context, req.Query, req.OperationName, req.Variables)
+		if res.result.Errors != nil {
 			// convert any errors to Error
-			for _, err := range response.result.Errors {
+			for _, err := range res.result.Errors {
 				if err.ResolverError != nil {
 					e := NewError(core, err.ResolverError)
 					err.Extensions = e.Extensions()
 					err.Message = e.Error()
 					err.ResolverError = e
-					response.status = e.HttpStatus()
+					res.status = e.HttpStatus()
 				} else {
 					// an error occurred before the resolver was called
 					// most likely a query validation error
-					response.status = http.StatusBadRequest
+					res.status = http.StatusBadRequest
 				}
 			}
 		}
 
-		response.write()
+		res.write()
+	}
+
+	s.router.Get("/*", func(w http.ResponseWriter, r *http.Request) {
+		core, err := s.newCore(r, "server.Get")
+		res := newResponse(core, w)
+		if err != nil {
+			res.writeError(err)
+			return
+		}
+
+		req := request{
+			Query:         core.Request.URL.Query().Get("query"),
+			OperationName: core.Request.URL.Query().Get("operationName"),
+		}
+
+		vars := core.Request.URL.Query().Get("variables")
+		if vars != "" {
+			err = json.NewDecoder(strings.NewReader(vars)).Decode(&req.Variables)
+			if err != nil {
+				res.writeError(err, KindInvalidJson, "Your variables query parameter contains invalid JSON")
+				return
+			}
+		}
+
+		execute(core, req, res)
+	})
+
+	s.router.Post("/*", func(w http.ResponseWriter, r *http.Request) {
+		core, err := s.newCore(r, "server.Post")
+		res := newResponse(core, w)
+		if err != nil {
+			res.writeError(err)
+			return
+		}
+
+		if core.Request.Header.Get("Content-Type") != "application/json" {
+			res.writeError(KindInvalidContentType)
+			return
+		}
+
+		var req request
+		err = json.NewDecoder(core.Request.Body).Decode(&req)
+		if err != nil {
+			res.writeError(err, KindInvalidJson)
+			return
+		}
+
+		execute(core, req, res)
 	})
 
 	s.router.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {

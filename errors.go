@@ -72,15 +72,19 @@ var (
 	KindInvalidJson = ErrorKind{400_000, "Invalid JSON", "Your request body contains invalid JSON", zapcore.InfoLevel}
 	// KindStructValidation
 	KindStructValidation = ErrorKind{Code: 400_001, Title: "Bad Data", Message: "Your payload contains invalid data", Severity: zapcore.InfoLevel}
+	// KindInvalidContentType
+	KindInvalidContentType = ErrorKind{400_003, "Invalid Content-Type", "The provided Content-Type was not application/json", zapcore.DebugLevel}
 
 	// KindUnauthorized
 	KindUnauthorized = ErrorKind{Code: 401_100, Title: "Unauthorized", Message: "You're not authorized to perform that action", Severity: zapcore.InfoLevel}
+	// KindInvalidCredentials
+	KindInvalidCredentials = ErrorKind{401_001, "Invalid Credentials", "The provided credentials were incorrect", zapcore.DebugLevel}
 	// KindInvalidJwt
-	KindInvalidJwt = ErrorKind{Code: 401_001, Title: "Invalid Token", Message: "Token could not be parsed", Severity: zapcore.InfoLevel}
+	KindInvalidJwt = ErrorKind{Code: 401_002, Title: "Invalid Token", Message: "Token could not be parsed", Severity: zapcore.InfoLevel}
 
 	// KindRouteNotFound
 	KindRouteNotFound = ErrorKind{404_000, "Not Found", "The requested url does not exist", zapcore.DebugLevel}
-	// KindRouteNotFound
+	// KindRowNotFound
 	KindRowNotFound = ErrorKind{404_001, "Not Found", "The requested resource was not found", zapcore.DebugLevel}
 
 	// KindMethodNotAllowed
@@ -159,7 +163,7 @@ func NewError(core *Core, err error, overrides ...interface{}) Error {
 
 	detail(&e)
 
-	core.Logger.Log(e.Kind.Severity, "error occurred", "error", e)
+	core.Logger.Log(e.Kind.Severity, e.Kind.Title+": "+e.Error(), "error", e)
 	return e
 }
 

@@ -23,6 +23,7 @@ var (
 	config     *core.Config
 )
 
+// this runs before all `init` functions
 var _ = func() error {
 	// this is where the config path is actually bound
 	flag.StringVar(&configPath, "config", "./core.toml", "path to core config file")
@@ -39,7 +40,7 @@ var _ = func() error {
 func init() {
 	// this flag is just for help text
 	rootCmd.Flags().String("config", "./core.toml", "path to core config file")
-	rootCmd.AddCommand(buildCmd, pushCommand, deployCommand, migrateCommand, modelsCommand)
+	rootCmd.AddCommand(migrateCommand, modelsCommand)
 }
 
 func Execute() {
