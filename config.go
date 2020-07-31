@@ -159,7 +159,7 @@ type DatabaseConfig struct {
 	// Main
 	Main DatabaseConnectionConfig `mapstructure:"main" validate:"required"`
 	// Test
-	Test DatabaseConnectionConfig `mapstructure:"test" validate:""`
+	Test DatabaseConnectionConfig `mapstructure:"test" validate:"-"`
 	// Models
 	Models struct {
 		Wipe            bool   `mapstructure:"wipe" validate:"required" toml:"wipe"`
@@ -171,7 +171,7 @@ type DatabaseConfig struct {
 // DatabaseConnectionConfig contains the configuration about database connections.
 type DatabaseConnectionConfig struct {
 	// Driver indicates the database driver to be used.
-	Driver string `mapstructure:"driver" validate:"required" toml:"driver"`
+	Driver string `mapstructure:"driver" validate:"required,oneof=postgres" toml:"driver"`
 	// Host indicates the host of the database server.
 	Host string `mapstructure:"host" validate:"required" toml:"host"`
 	// Port indicates the port of the database server.
@@ -301,12 +301,8 @@ func (cfg *Config) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 // - the referenced struct is not valid
 func LoadConfig(cfg Configuration) {
 	var path string
-	flag.StringVar(&path, "config", "", "path to the config file")
+	flag.StringVar(&path, "config", "./core.toml", "path to the config file")
 	flag.Parse()
-
-	if path == "" {
-		log.Fatal("you must pass the path to the config file using the --config argument")
-	}
 
 	switch {
 	case strings.HasPrefix(path, "gcloud://"):
