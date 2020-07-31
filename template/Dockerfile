@@ -32,3 +32,6 @@ COPY ./database/migrations ./database/migrations
 
 # Run the web service on container startup.
 ENTRYPOINT ["./server"]
+
+# Default arguments
+CMD ["--config", "env://CORE_CONFIG"]

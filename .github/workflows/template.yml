@@ -16,23 +16,15 @@ jobs:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-      - name: Set up Go
-        uses: actions/setup-go@v2
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
         with:
           go-version: ^1.14
-      - name: Download dependencies
-        run: |
-          cd template/src
-          go mod download
-      - name: Migrate test database
+      - name: Run Tests
         run: |
           cd template
-          ./core.sh --config ./core.example.toml migrate --only-test up
-      - name: Run tests
-        run: |
-          cd template/src
+          ./core.sh migrate --only-test up
+          cd src
           go test ./test/...
 
   publish:
@@ -41,10 +33,9 @@ jobs:
     needs: test
     if: github.ref == 'refs/heads/master'
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-      - name: Publish docker image to GitHub
-        uses: docker/build-push-action@v1
+      - uses: actions/checkout@v2
+      - uses: docker/build-push-action@v1
+        name: Publish docker image to GitHub
         with:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
@@ -53,13 +44,13 @@ jobs:
           tag_with_ref: true
           tag_with_sha: true
           path: ./template
-      - name: Publish docker image to Google Cloud
-        uses: docker/build-push-action@v1
+      - uses: docker/build-push-action@v1
+        name: Publish docker image to Heroku
         with:
-          username: _json_key
-          password: ${{ secrets.GCP_CONTAINER_REGISTRY_SERVICE_ACCOUNT_KEY }}
-          registry: gcr.io
-          repository: ${{ secrets.GCP_PROJECT_ID }}/core
+          username: _
+          password: ${{ secrets.HEROKU_AUTH_TOKEN }}
+          registry: registry.heroku.com
+          repository: core-go/web
           tag_with_ref: true
           tag_with_sha: true
           path: ./template
@@ -70,16 +61,9 @@ jobs:
     needs: publish
     if: github.ref == 'refs/heads/master'
     steps:
-      - name: Setup gcloud
-        uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
-        with:
-          version: ${{ secrets.GCP_GCLOUD_VERSION }}
-          service_account_key: ${{ secrets.GCP_CLOUD_RUN_SERVICE_ACCOUNT_KEY }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-      - name: Deploy
+      - name: Deploy to Heroku
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_AUTH_TOKEN }}
         run: |
-          gcloud run deploy ${{ secrets.GCP_CLOUD_RUN_SERVICE }} \
-            --quiet \
-            --image "gcr.io/${{ secrets.GCP_PROJECT_ID }}/core:latest" \
-            --platform ${{ secrets.GCP_CLOUD_RUN_PLATFORM }} \
-            --region ${{ secrets.GCP_CLOUD_RUN_REGION }}
+          heroku container:login
+          heroku container:release web --app=core-go

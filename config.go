@@ -308,7 +308,8 @@ func LoadConfig(cfg Configuration) {
 		log.Fatal("you must pass the path to the config file using the --config argument")
 	}
 
-	if strings.HasPrefix(path, "gcloud://") {
+	switch {
+	case strings.HasPrefix(path, "gcloud://"):
 		// the path is a secret in google cloud's secret manager
 		ctx := context.Background()
 		client, err := secretmanager.NewClient(ctx)
@@ -328,7 +329,14 @@ func LoadConfig(cfg Configuration) {
 		if err != nil {
 			log.Fatalf("failed to read config from secret: %v", err)
 		}
-	} else {
+	case strings.HasPrefix(path, "env://"):
+		// the path is a environment variable key
+		viper.SetConfigType("toml")
+		err := viper.ReadConfig(strings.NewReader(os.Getenv(path[6:])))
+		if err != nil {
+			log.Fatalf("failed to read config from env: %v", err)
+		}
+	default:
 		var err error
 		path, err = filepath.Abs(path)
 		if err != nil {
