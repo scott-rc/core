@@ -165,7 +165,7 @@ type DatabaseConfig struct {
 		Wipe            bool   `mapstructure:"wipe" validate:"required" toml:"wipe"`
 		Output          string `mapstructure:"output" validate:"required" toml:"output"`
 		StructTagCasing string `mapstructure:"struct-tag-casing" validate:"required" toml:"struct-tag-casing"`
-	} `mapstructure:"models" validate:"required"`
+	} `mapstructure:"models" validate:"-"`
 }
 
 // DatabaseConnectionConfig contains the configuration about database connections.
