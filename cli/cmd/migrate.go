@@ -34,9 +34,13 @@ var (
 func init() {
 	migrateCommand.Flags().StringVarP(&migrations, "migrations", "m", config.Database.Migrations.Location, "migrations source")
 	migrateCommand.Flags().StringVarP(&connection, "connection", "c", config.Database.Main.ConnectionString(), "main database connection")
-	migrateCommand.Flags().BoolVarP(&both, "both", "", false, "migrate using the main database connection and test database connection")
-	migrateCommand.Flags().StringVarP(&testConnection, "test-connection", "t", config.Database.Test.ConnectionString(), "test database connection")
-	migrateCommand.Flags().BoolVarP(&onlyTest, "only-test", "", false, "only migrate using the test database connection")
+	testConnectionDefault := ""
+	if config.Database.Test != nil {
+		testConnectionDefault = config.Database.Test.ConnectionString()
+	}
+	migrateCommand.Flags().StringVarP(&testConnection, "test-connection", "t", testConnectionDefault, "test database connection")
+	migrateCommand.Flags().BoolVarP(&both, "both", "", false, "migrate both the main and test databases")
+	migrateCommand.Flags().BoolVarP(&onlyTest, "only-test", "", false, "only migrate the test database")
 	migrateCommand.AddCommand(upCommand, downCommand, createCommand)
 }
 

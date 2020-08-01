@@ -40,7 +40,7 @@ var _ = func() error {
 func init() {
 	// this flag is just for help text
 	rootCmd.Flags().String("config", "./core.toml", "path to core config file")
-	rootCmd.AddCommand(migrateCommand, modelsCommand)
+	rootCmd.AddCommand(newCommand, migrateCommand, modelsCommand)
 }
 
 func Execute() {

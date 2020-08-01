@@ -159,13 +159,13 @@ type DatabaseConfig struct {
 	// Main
 	Main DatabaseConnectionConfig `mapstructure:"main" validate:"required"`
 	// Test
-	Test DatabaseConnectionConfig `mapstructure:"test" validate:"-"`
+	Test *DatabaseConnectionConfig `mapstructure:"test" validate:""`
 	// Models
-	Models struct {
+	Models *struct {
 		Wipe            bool   `mapstructure:"wipe" validate:"required" toml:"wipe"`
 		Output          string `mapstructure:"output" validate:"required" toml:"output"`
 		StructTagCasing string `mapstructure:"struct-tag-casing" validate:"required" toml:"struct-tag-casing"`
-	} `mapstructure:"models" validate:"-"`
+	} `mapstructure:"models" validate:""`
 }
 
 // DatabaseConnectionConfig contains the configuration about database connections.
@@ -270,22 +270,26 @@ func (cfg *Config) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 			enc.AddString("sslmode", cfg.Database.Main.Sslmode)
 			return nil
 		}))
-		_ = enc.AddObject("test", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
-			enc.AddString("driver", cfg.Database.Test.Driver)
-			enc.AddString("dbname", cfg.Database.Test.Dbname)
-			enc.AddString("host", cfg.Database.Test.Host)
-			enc.AddInt("port", cfg.Database.Test.Port)
-			enc.AddString("user", cfg.Database.Test.User)
-			enc.AddString("schema", cfg.Database.Test.Schema)
-			enc.AddString("sslmode", cfg.Database.Test.Sslmode)
-			return nil
-		}))
-		_ = enc.AddObject("models", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
-			enc.AddString("output", cfg.Database.Models.Output)
-			enc.AddString("struct-tag-casing", cfg.Database.Models.StructTagCasing)
-			enc.AddBool("wipe", cfg.Database.Models.Wipe)
-			return nil
-		}))
+		if cfg.Database.Test != nil {
+			_ = enc.AddObject("test", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
+				enc.AddString("driver", cfg.Database.Test.Driver)
+				enc.AddString("dbname", cfg.Database.Test.Dbname)
+				enc.AddString("host", cfg.Database.Test.Host)
+				enc.AddInt("port", cfg.Database.Test.Port)
+				enc.AddString("user", cfg.Database.Test.User)
+				enc.AddString("schema", cfg.Database.Test.Schema)
+				enc.AddString("sslmode", cfg.Database.Test.Sslmode)
+				return nil
+			}))
+		}
+		if cfg.Database.Models != nil {
+			_ = enc.AddObject("models", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
+				enc.AddString("output", cfg.Database.Models.Output)
+				enc.AddString("struct-tag-casing", cfg.Database.Models.StructTagCasing)
+				enc.AddBool("wipe", cfg.Database.Models.Wipe)
+				return nil
+			}))
+		}
 		return nil
 	}))
 	return nil

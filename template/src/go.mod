@@ -26,4 +26,4 @@ require (
 	google.golang.org/grpc v1.31.0 // indirect
 )
 
-//replace github.com/scott-rc/core => ../../
+replace github.com/scott-rc/core => ../../
