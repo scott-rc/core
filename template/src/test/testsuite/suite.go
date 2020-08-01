@@ -21,7 +21,7 @@ func init() {
 
 var Config = core.Config{
 	Database: core.DatabaseConfig{
-		Test: core.DatabaseConnectionConfig{
+		Test: &core.DatabaseConnectionConfig{
 			Driver:   "postgres",
 			Host:     "localhost",
 			Port:     5432,

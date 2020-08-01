@@ -5,6 +5,7 @@ go 1.14
 require (
 	cloud.google.com/go v0.61.0
 	github.com/BurntSushi/toml v0.3.1
+	github.com/DATA-DOG/go-txdb v0.1.3 // indirect
 	github.com/briandowns/spinner v1.11.1
 	github.com/containerd/containerd v1.3.6 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
