@@ -1,8 +1,5 @@
-release:
-  command:
-    - mkdir -p bin/database/migrations
-    - cp template/graphql.schema bin/graphql.schema
-    - cp -R template/database/migrations bin/database/migrations
-    - cd template/src; go build -o ../../bin/app
+build:
+  build:
+    web: Dockerfile
 run:
   web: ./bin/app
