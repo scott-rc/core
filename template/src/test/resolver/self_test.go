@@ -71,10 +71,10 @@ func (s *selfResolverTestSuite) Test_SelfAuthenticate() {
 	self := s.Factory.CreateUser(map[string]interface{}{models.UserColumns.PasswordHash: pw})
 
 	// act
-	token, err := s.Resolver.SelfAuthenticate(s.Core.Context, &struct {
-		Credentials types.SelfAuthenticateInputType
+	token, err := s.Resolver.SelfLogin(s.Core.Context, &struct {
+		Credentials types.SelfLoginInputType
 	}{
-		Credentials: types.SelfAuthenticateInputType{
+		Credentials: types.SelfLoginInputType{
 			Email:    self.Email,
 			Password: pw,
 		},

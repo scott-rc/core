@@ -23,6 +23,7 @@ const ContextKey = contextKey(iota)
 //
 // *core.Core will always be attached to the context.Context in your resolver method. Use the ContextKey to retrieve it.
 type Core struct {
+	w          http.ResponseWriter
 	Context    context.Context
 	Config     Configuration
 	Db         *sql.DB
@@ -60,10 +61,10 @@ func (c *Core) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	}))
 	_ = enc.AddObject("session", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
 		s := c.Session.(*session)
-		enc.AddString("token", s.tokenString)
-		if s.token != nil {
+		enc.AddString("token", s.accessTokenString)
+		if s.accessToken != nil {
 			_ = enc.AddObject("claims", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
-				claims := s.token.Claims.(*jwt.StandardClaims)
+				claims := s.accessToken.Claims.(*jwt.StandardClaims)
 				enc.AddString("aud", claims.Audience)
 				enc.AddInt64("exp", claims.ExpiresAt)
 				enc.AddString("jti", claims.Id)

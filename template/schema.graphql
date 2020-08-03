@@ -8,9 +8,11 @@ type User {
 }
 
 type Self {
+    id: Int!
     email: String!
     createdAt: Time!
     updatedAt: Time!
+    accessToken: String!
     todos: [Todo]!
 }
 
@@ -25,6 +27,7 @@ type Todo {
 
 # query
 type Query {
+    self: Self
     todo(id: Int!): Todo!
     todos(limit: Int, offset: Int): [Todo!]!
 }
@@ -46,7 +49,7 @@ input SelfCreateInput {
     password: String!
 }
 
-input SelfAuthenticateInput {
+input SelfLoginInput {
     email: String!
     password: String!
 }
@@ -54,7 +57,8 @@ input SelfAuthenticateInput {
 # mutation
 type Mutation {
     selfCreate(self: SelfCreateInput!): Self!
-    selfAuthenticate(credentials: SelfAuthenticateInput!): String!
+    selfLogin(credentials: SelfLoginInput!): Self!
+    selfLogout: Int!
     todoCreate(todo: TodoCreateInput!): Todo!
     todoUpdate(todo: TodoUpdateInput!): Todo!
 }

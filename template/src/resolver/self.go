@@ -14,6 +14,20 @@ import (
 	"github.com/volatiletech/sqlboiler/v4/boil"
 )
 
+func (r *Resolver) Self(ctx context.Context) (*types.SelfType, error) {
+	c := r.core(ctx, "resolver.Self")
+	if c.Session.IsAnonymous() && !c.Session.RefreshAccessToken() {
+		return nil, nil
+	}
+
+	user, err := models.FindUser(c.Context, c.Db, c.Session.UserId())
+	if err != nil {
+		return nil, nil
+	}
+
+	return types.NewSelfType(c, user), nil
+}
+
 func (r *Resolver) SelfCreate(ctx context.Context, args *struct{ Self types.SelfCreateInputType }) (*types.SelfType, error) {
 	c := r.core(ctx, "resolver.SelfCreate")
 
@@ -37,24 +51,28 @@ func (r *Resolver) SelfCreate(ctx context.Context, args *struct{ Self types.Self
 	return types.NewSelfType(c, user), nil
 }
 
-func (r *Resolver) SelfAuthenticate(ctx context.Context, args *struct {
-	Credentials types.SelfAuthenticateInputType
-}) (string, error) {
-	c := r.core(ctx, "resolver.SelfAuthenticate")
+func (r *Resolver) SelfLogin(ctx context.Context, args *struct{ Credentials types.SelfLoginInputType }) (*types.SelfType, error) {
+	c := r.core(ctx, "resolver.SelfLogin")
 	user, err := models.Users(qm.Where("email = ?", args.Credentials.Email)).One(c.Context, c.Db)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			err = core.NewError(c.Core, err, core.KindInvalidCredentials)
 		}
-		return "", err
+		return nil, err
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(args.Credentials.Password))
 	if err != nil {
-		return "", core.NewError(c.Core, err, core.KindInvalidCredentials)
+		return nil, core.NewError(c.Core, err, core.KindInvalidCredentials)
 	}
 
-	c.Session.SetUserId(user.UserID)
+	c.Session.Login(user.UserID)
 
-	return c.Session.Token(), nil
+	return types.NewSelfType(c, user), nil
+}
+
+func (r *Resolver) SelfLogout(ctx context.Context) (int32, error) {
+	c := r.core(ctx, "resolver.SelfLogout")
+	c.Session.Logout()
+	return 0, nil
 }

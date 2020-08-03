@@ -38,7 +38,7 @@ func (r *Resolver) Todos(ctx context.Context, args *types.QueryMods) ([]*types.T
 
 func (r *Resolver) TodoCreate(ctx context.Context, args *struct{ Todo types.TodoCreateInputType }) (*types.TodoType, error) {
 	c := r.core(ctx, "resolver.TodoCreate")
-	if c.Session.IsGuest() {
+	if c.Session.IsAnonymous() {
 		return nil, core.KindUnauthorized
 	}
 
@@ -62,7 +62,7 @@ func (r *Resolver) TodoCreate(ctx context.Context, args *struct{ Todo types.Todo
 
 func (r *Resolver) TodoUpdate(ctx context.Context, args *struct{ Todo types.TodoUpdateInputType }) (*types.TodoType, error) {
 	c := r.core(ctx, "resolver.TodoUpdate")
-	if c.Session.IsGuest() {
+	if c.Session.IsAnonymous() {
 		return nil, core.KindUnauthorized
 	}
 

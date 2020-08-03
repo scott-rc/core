@@ -54,7 +54,10 @@ type ServerConfig struct {
 	// Cors contains the configuration about CORS.
 	Cors CorsConfig `mapstructure:"cors" validate:"required"`
 	// Jwt contains the configuration about JSON web tokens.
-	Jwt JwtConfig `mapstructure:"jwt" validate:"required"`
+	Jwt struct {
+		AccessToken  JwtConfig  `mapstructure:"access_token" validate:"required"`
+		RefreshToken *JwtConfig `mapstructure:"refresh_token" validate:""`
+	} `mapstructure:"jwt" validate:"required"`
 	// Log contains the configuration about logging.
 	Log LogConfig `mapstructure:"log" validate:"required"`
 	// Graphql contains the configuration about GraphQL.
@@ -64,7 +67,7 @@ type ServerConfig struct {
 // corsOptions
 func (svr *ServerConfig) corsOptions() cors.Options {
 	return cors.Options{
-		MaxAge:             svr.Cors.MaxAge,
+		MaxAge:             int(svr.Cors.MaxAge.Seconds()),
 		AllowCredentials:   svr.Cors.AllowCredentials,
 		AllowedOrigins:     svr.Cors.AllowedOrigins,
 		AllowedMethods:     svr.Cors.AllowedMethods,
@@ -79,7 +82,7 @@ func (svr *ServerConfig) corsOptions() cors.Options {
 type CorsConfig struct {
 	// MaxAge indicates how long (in seconds) the results of a preflight request
 	// can be cached
-	MaxAge int `mapstructure:"max_age" validate:"min=0"`
+	MaxAge time.Duration `mapstructure:"max_age" validate:"required"`
 	// AllowCredentials indicates whether the request can include user credentials like
 	// cookies, HTTP authentication or client side SSL certificates.
 	AllowCredentials bool `mapstructure:"allow_credentials" validate:"required"`
@@ -210,7 +213,7 @@ func (cfg *Config) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	_ = enc.AddObject("server", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
 		enc.AddInt("port", cfg.Server.Port)
 		_ = enc.AddObject("cors", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
-			enc.AddInt("maxAge", cfg.Server.Cors.MaxAge)
+			enc.AddInt("maxAge", int(cfg.Server.Cors.MaxAge.Seconds()))
 			enc.AddBool("allowCredentials", cfg.Server.Cors.AllowCredentials)
 			_ = enc.AddArray("allowedOrigins", zapcore.ArrayMarshalerFunc(func(enc zapcore.ArrayEncoder) error {
 				for _, origin := range cfg.Server.Cors.AllowedOrigins {
@@ -233,15 +236,32 @@ func (cfg *Config) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 			return nil
 		}))
 		_ = enc.AddObject("jwt", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
-			_ = enc.AddArray("audience", zapcore.ArrayMarshalerFunc(func(enc zapcore.ArrayEncoder) error {
-				for _, audience := range cfg.Server.Jwt.Audience {
-					enc.AppendString(audience)
-				}
+			_ = enc.AddObject("accessToken", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
+				_ = enc.AddArray("audience", zapcore.ArrayMarshalerFunc(func(enc zapcore.ArrayEncoder) error {
+					for _, audience := range cfg.Server.Jwt.AccessToken.Audience {
+						enc.AppendString(audience)
+					}
+					return nil
+				}))
+				enc.AddString("issuer", cfg.Server.Jwt.AccessToken.Issuer)
+				enc.AddString("expiresAt", cfg.Server.Jwt.AccessToken.ExpiresAt.String())
+				enc.AddString("notBefore", cfg.Server.Jwt.AccessToken.NotBefore.String())
 				return nil
 			}))
-			enc.AddString("issuer", cfg.Server.Jwt.Issuer)
-			enc.AddString("expiresAt", cfg.Server.Jwt.ExpiresAt.String())
-			enc.AddString("notBefore", cfg.Server.Jwt.NotBefore.String())
+			if cfg.Server.Jwt.RefreshToken != nil {
+				_ = enc.AddObject("refreshToken", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
+					_ = enc.AddArray("audience", zapcore.ArrayMarshalerFunc(func(enc zapcore.ArrayEncoder) error {
+						for _, audience := range cfg.Server.Jwt.RefreshToken.Audience {
+							enc.AppendString(audience)
+						}
+						return nil
+					}))
+					enc.AddString("issuer", cfg.Server.Jwt.RefreshToken.Issuer)
+					enc.AddString("expiresAt", cfg.Server.Jwt.RefreshToken.ExpiresAt.String())
+					enc.AddString("notBefore", cfg.Server.Jwt.RefreshToken.NotBefore.String())
+					return nil
+				}))
+			}
 			return nil
 		}))
 		_ = enc.AddObject("log", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {

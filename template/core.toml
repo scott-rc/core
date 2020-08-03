@@ -4,18 +4,26 @@ env = "development"
 port = 3001
 
     [server.cors]
-    max_age = 3600
+    max_age = "5m"
     allow_credentials = true
-    allowed_origins = ["*"]
+    allowed_origins = ["http://localhost:3000"]
     allowed_methods = ["OPTIONS", "GET", "POST"]
     allowed_headers = ["*"]
 
     [server.jwt]
-    audience = ["*"]
-    issuer = "localhost"
-    expires_at = "168h"
-    not_before = "0s"
-    secret = "this_should_really_be_something_else"
+        [server.jwt.access_token]
+        audience = ["*"]
+        issuer = "localhost"
+        expires_at = "10s"
+        not_before = "0s"
+        secret = "this_should_really_be_something_else"
+
+        [server.jwt.refresh_token]
+        audience = ["*"]
+        issuer = "localhost"
+        expires_at = "168h"
+        not_before = "0s"
+        secret = "this_should_definitely_be_something_else"
 
     [server.log]
     level = "debug"

@@ -12,12 +12,16 @@ type SelfType struct {
 	user *models.User
 }
 
-func NewSelfType(ctx *app.Core, user *models.User) *SelfType {
-	return &SelfType{core: ctx, user: user}
+func NewSelfType(core *app.Core, user *models.User) *SelfType {
+	return &SelfType{core: core, user: user}
 }
 
 func (s *SelfType) Id() int32 {
 	return int32(s.user.UserID)
+}
+
+func (s *SelfType) AccessToken() string {
+	return s.core.Session.AccessToken()
 }
 
 func (s *SelfType) Email() string {
@@ -45,7 +49,7 @@ type SelfCreateInputType struct {
 	Password string `validate:"required,min=8"`
 }
 
-type SelfAuthenticateInputType struct {
+type SelfLoginInputType struct {
 	Email    string `validate:"required"`
 	Password string `validate:"required"`
 }

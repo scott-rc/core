@@ -31,21 +31,32 @@ func init() {
 type ErrorDetailer func(*Error)
 
 func DefaultErrorDetailer(e *Error) {
+	// only changes the kind if it's unknown
+	changeTo := func(k ErrorKind) {
+		if e.Kind == KindUnknown {
+			e.Kind = k
+		}
+	}
+
 	switch err := e.Cause.(type) {
 	case validator.ValidationErrors:
-		e.Kind = KindStructValidation
+		changeTo(KindStructValidation)
 		for _, err := range err {
 			e.Details = append(e.Details, err.Translate(uni.GetFallback()))
 		}
 	case *jwt.ValidationError:
-		e.Kind = KindInvalidJwt
+		if err.Errors == jwt.ValidationErrorExpired {
+			changeTo(KindExpiredAccessToken)
+		} else {
+			changeTo(KindInvalidJwt)
+		}
 		e.Details = append(e.Details, err.Error())
 	default:
 		switch {
 		case e.Cause == sql.ErrNoRows:
-			e.Kind = KindRowNotFound
+			changeTo(KindRowNotFound)
 		case strings.Contains(e.Cause.Error(), "models"):
-			e.Kind = KindDatabase
+			changeTo(KindDatabase)
 		}
 	}
 }
@@ -80,7 +91,9 @@ var (
 	// KindInvalidCredentials
 	KindInvalidCredentials = ErrorKind{401_001, "Invalid Credentials", "The provided credentials were incorrect", zapcore.DebugLevel}
 	// KindInvalidJwt
-	KindInvalidJwt = ErrorKind{Code: 401_002, Title: "Invalid Token", Message: "Token could not be parsed", Severity: zapcore.InfoLevel}
+	KindInvalidJwt = ErrorKind{Code: 401_002, Title: "Invalid JWT", Message: "The provided refresh or access token was invalid", Severity: zapcore.InfoLevel}
+	// KindExpiredAccessToken
+	KindExpiredAccessToken = ErrorKind{Code: 401_003, Title: "Expired Access Token", Message: "The provided access token was expired", Severity: zapcore.DebugLevel}
 
 	// KindRouteNotFound
 	KindRouteNotFound = ErrorKind{404_000, "Not Found", "The requested url does not exist", zapcore.DebugLevel}
@@ -135,7 +148,6 @@ func NewError(core *Core, err error, overrides ...interface{}) Error {
 	e := Error{
 		core:    core,
 		Kind:    KindUnknown,
-		Message: KindUnknown.Message,
 		Details: []string{},
 		Cause:   err,
 	}

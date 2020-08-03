@@ -34,16 +34,14 @@ type request struct {
 
 // response
 type response struct {
-	w      http.ResponseWriter
 	core   *Core
 	result *graphql.Response
 	status int
 }
 
 // newResponse
-func newResponse(core *Core, w http.ResponseWriter) response {
+func newResponse(core *Core) response {
 	return response{
-		w:      w,
 		core:   core,
 		result: nil,
 		status: 200,
@@ -59,10 +57,10 @@ func (r *response) write() {
 	}
 
 	r.result.Extensions = r.core.Extensions()
-	r.w.Header().Add("Content-Type", "application/json")
-	r.w.WriteHeader(r.status)
+	r.core.w.Header().Add("Content-Type", "application/json")
+	r.core.w.WriteHeader(r.status)
 
-	err := json.NewEncoder(r.w).Encode(r.result)
+	err := json.NewEncoder(r.core.w).Encode(r.result)
 	if err != nil {
 		r.core.Logger.DPanic("failed to encode result", "error", err)
 	}
@@ -98,7 +96,7 @@ type server struct {
 }
 
 // newCore
-func (s *server) newCore(r *http.Request, operation string) (*Core, error) {
+func (s *server) newCore(w http.ResponseWriter, r *http.Request, operation string) (*Core, error) {
 	// this should never error
 	id, _ := nanoid.Nanoid()
 
@@ -108,6 +106,7 @@ func (s *server) newCore(r *http.Request, operation string) (*Core, error) {
 		Validate:   validate,
 		Config:     s.config,
 		Db:         s.db,
+		w:          w,
 
 		// set later
 		Context: nil,
@@ -149,8 +148,8 @@ func (s *server) setupRoutes() {
 					s.logger.Error("recovering from panic", "error", rvr)
 
 					// error would be session related, which doesn't matter here
-					core, _ := s.newCore(r, "server.Recover")
-					response := newResponse(core, w)
+					core, _ := s.newCore(w, r, "server.Recover")
+					response := newResponse(core)
 					response.writeError(KindUnknown)
 				}
 			}()
@@ -182,8 +181,8 @@ func (s *server) setupRoutes() {
 	}
 
 	s.router.Get("/*", func(w http.ResponseWriter, r *http.Request) {
-		core, err := s.newCore(r, "server.Get")
-		res := newResponse(core, w)
+		core, err := s.newCore(w, r, "server.Get")
+		res := newResponse(core)
 		if err != nil {
 			res.writeError(err)
 			return
@@ -207,8 +206,8 @@ func (s *server) setupRoutes() {
 	})
 
 	s.router.Post("/*", func(w http.ResponseWriter, r *http.Request) {
-		core, err := s.newCore(r, "server.Post")
-		res := newResponse(core, w)
+		core, err := s.newCore(w, r, "server.Post")
+		res := newResponse(core)
 		if err != nil {
 			res.writeError(err)
 			return
@@ -230,8 +229,8 @@ func (s *server) setupRoutes() {
 	})
 
 	s.router.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
-		core, err := s.newCore(r, "server.MethodNotAllowed")
-		response := newResponse(core, w)
+		core, err := s.newCore(w, r, "server.MethodNotAllowed")
+		response := newResponse(core)
 		if err != nil {
 			response.writeError(err)
 			return
@@ -240,8 +239,8 @@ func (s *server) setupRoutes() {
 	})
 
 	s.router.NotFound(func(w http.ResponseWriter, r *http.Request) {
-		core, err := s.newCore(r, "server.NotFound")
-		response := newResponse(core, w)
+		core, err := s.newCore(w, r, "server.NotFound")
+		response := newResponse(core)
 		if err != nil {
 			response.writeError(err)
 			return

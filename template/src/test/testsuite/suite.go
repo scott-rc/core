@@ -45,7 +45,7 @@ type Suite struct {
 
 func (s *Suite) SignIn(overrides map[string]interface{}) {
 	s.User = s.Factory.CreateUser(overrides)
-	s.Core.Session.SetUserId(s.User.UserID)
+	s.Core.Session.Login(s.User.UserID)
 }
 
 func (s *Suite) SetupSuite() {
