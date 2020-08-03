@@ -240,6 +240,6 @@ func setRefreshToken(core *Core, refreshToken *jwt.Token) {
 		MaxAge:   maxAge,
 		Secure:   core.Config.CoreConfig().Env != EnvDevelopment,
 		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: http.SameSiteStrictMode,
 	})
 }
