@@ -234,12 +234,24 @@ func setRefreshToken(core *Core, refreshToken *jwt.Token) {
 		}
 	}
 
+	sameSite := http.SameSiteDefaultMode
+	switch core.Config.CoreConfig().Server.Jwt.RefreshCookie.SameSite {
+	case "none":
+		sameSite = http.SameSiteNoneMode
+	case "lax":
+		sameSite = http.SameSiteLaxMode
+	case "strict":
+		sameSite = http.SameSiteStrictMode
+	}
+
 	http.SetCookie(core.w, &http.Cookie{
 		Name:     refreshTokenKey,
 		Value:    refreshTokenString,
 		MaxAge:   maxAge,
-		Secure:   core.Config.CoreConfig().Env != EnvDevelopment,
-		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: sameSite,
+		Domain:   core.Config.CoreConfig().Server.Jwt.RefreshCookie.Domain,
+		Path:     core.Config.CoreConfig().Server.Jwt.RefreshCookie.Path,
+		Secure:   core.Config.CoreConfig().Server.Jwt.RefreshCookie.Secure,
+		HttpOnly: core.Config.CoreConfig().Server.Jwt.RefreshCookie.HttpOnly,
 	})
 }

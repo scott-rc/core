@@ -4,26 +4,33 @@ env = "development"
 port = 3001
 
     [server.cors]
-    max_age = "5m"
     allow_credentials = true
-    allowed_origins = ["http://localhost:3000"]
-    allowed_methods = ["OPTIONS", "GET", "POST"]
     allowed_headers = ["*"]
+    allowed_methods = ["OPTIONS", "GET", "POST"]
+    allowed_origins = ["http://localhost:3000"]
+    max_age = "5m"
 
     [server.jwt]
         [server.jwt.access_token]
         audience = ["*"]
-        issuer = "localhost"
         expires_at = "10s"
+        issuer = "localhost"
         not_before = "0s"
         secret = "this_should_really_be_something_else"
 
         [server.jwt.refresh_token]
         audience = ["*"]
-        issuer = "localhost"
         expires_at = "168h"
+        issuer = "localhost"
         not_before = "0s"
         secret = "this_should_definitely_be_something_else"
+
+        [server.jwt.refresh_cookie]
+        domain = "localhost"
+        http_only = true
+        path = "/"
+        same_site = "strict"
+        secure = false
 
     [server.log]
     level = "debug"
@@ -33,30 +40,30 @@ port = 3001
 
 [database]
     [database.main]
-    driver = "postgres"
     dbname = "dev"
-    user = "dev"
-    password = "dev"
+    driver = "postgres"
     host = "localhost"
+    password = "dev"
     port = 5432
     schema = "public"
     sslmode = "disable"
+    user = "dev"
 
     [database.test]
-    driver = "postgres"
     dbname = "test"
-    user = "test"
-    password = "test"
+    driver = "postgres"
     host = "localhost"
+    password = "test"
     port = 5432
     schema = "public"
     sslmode = "disable"
+    user = "test"
 
     [database.migrations]
     location = "file://./database/migrations"
     run_on_start = true
 
     [database.models]
-    wipe = true
     output = "./src/models"
     struct-tag-casing = "camel"
+    wipe = true

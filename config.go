@@ -55,8 +55,15 @@ type ServerConfig struct {
 	Cors CorsConfig `mapstructure:"cors" validate:"required"`
 	// Jwt contains the configuration about JSON web tokens.
 	Jwt struct {
-		AccessToken  JwtConfig  `mapstructure:"access_token" validate:"required"`
-		RefreshToken *JwtConfig `mapstructure:"refresh_token" validate:""`
+		AccessToken   JwtConfig  `mapstructure:"access_token" validate:"required"`
+		RefreshToken  *JwtConfig `mapstructure:"refresh_token" validate:""`
+		RefreshCookie *struct {
+			Domain   string `mapstructure:"domain" validate:"hostname"`
+			HttpOnly bool   `mapstructure:"http_only" validate:"required"`
+			Path     string `mapstructure:"path" validate:"required,uri"`
+			SameSite string `mapstructure:"same_site" validate:"required,oneof=none lax strict"`
+			Secure   bool   `mapstructure:"secure" validate:""`
+		} `mapstructure:"refresh_cookie" validate:""`
 	} `mapstructure:"jwt" validate:"required"`
 	// Log contains the configuration about logging.
 	Log LogConfig `mapstructure:"log" validate:"required"`
