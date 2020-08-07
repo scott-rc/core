@@ -16,7 +16,7 @@ import (
 
 func (r *Resolver) Self(ctx context.Context) (*types.SelfType, error) {
 	c := r.core(ctx, "resolver.Self")
-	if c.Session.IsAnonymous() && !c.Session.RefreshAccessToken() {
+	if !c.Session.RefreshAccessToken() && c.Session.IsAnonymous() {
 		return nil, nil
 	}
 

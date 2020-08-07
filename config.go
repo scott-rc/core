@@ -44,7 +44,7 @@ type Config struct {
 	Server ServerConfig `mapstructure:"server" validate:"required"`
 	// Database contains the configuration about database connections.
 	// This is optional, if no database configuration is found, then no database connection is created.
-	Database DatabaseConfig `mapstructure:"database" validate:""`
+	Database *DatabaseConfig `mapstructure:"database" validate:""`
 }
 
 // ServerConfig contains the configuration about the server.
@@ -172,9 +172,11 @@ type DatabaseConfig struct {
 	Test *DatabaseConnectionConfig `mapstructure:"test" validate:""`
 	// Models
 	Models *struct {
-		Wipe            bool   `mapstructure:"wipe" validate:"required" toml:"wipe"`
-		Output          string `mapstructure:"output" validate:"required" toml:"output"`
-		StructTagCasing string `mapstructure:"struct-tag-casing" validate:"required" toml:"struct-tag-casing"`
+		Wipe            bool     `mapstructure:"wipe" validate:"required" toml:"wipe"`
+		Output          string   `mapstructure:"output" validate:"required" toml:"output"`
+		StructTagCasing string   `mapstructure:"struct-tag-casing" validate:"required" toml:"struct-tag-casing"`
+		NoTests         bool     `mapstructure:"no-tests" validate:"" toml:"no-tests"`
+		Blacklist       []string `mapstructure:"blacklist" validate:"" toml:"psql.blacklist"`
 	} `mapstructure:"models" validate:""`
 }
 
@@ -269,6 +271,16 @@ func (cfg *Config) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 					return nil
 				}))
 			}
+			if cfg.Server.Jwt.RefreshCookie != nil {
+				_ = enc.AddObject("refreshCookie", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
+					enc.AddString("domain", cfg.Server.Jwt.RefreshCookie.Domain)
+					enc.AddBool("httpOnly", cfg.Server.Jwt.RefreshCookie.HttpOnly)
+					enc.AddString("path", cfg.Server.Jwt.RefreshCookie.Path)
+					enc.AddString("sameSite", cfg.Server.Jwt.RefreshCookie.SameSite)
+					enc.AddBool("secure", cfg.Server.Jwt.RefreshCookie.Secure)
+					return nil
+				}))
+			}
 			return nil
 		}))
 		_ = enc.AddObject("log", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
@@ -281,48 +293,57 @@ func (cfg *Config) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 		}))
 		return nil
 	}))
-	_ = enc.AddObject("database", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
-		_ = enc.AddObject("migrations", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
-			enc.AddString("location", cfg.Database.Migrations.Location)
-			enc.AddBool("run_on_start", cfg.Database.Migrations.RunOnStart)
-			return nil
-		}))
-		_ = enc.AddObject("main", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
-			enc.AddString("driver", cfg.Database.Main.Driver)
-			enc.AddString("dbname", cfg.Database.Main.Dbname)
-			enc.AddString("host", cfg.Database.Main.Host)
-			enc.AddInt("port", cfg.Database.Main.Port)
-			enc.AddString("user", cfg.Database.Main.User)
-			enc.AddString("schema", cfg.Database.Main.Schema)
-			enc.AddString("sslmode", cfg.Database.Main.Sslmode)
-			return nil
-		}))
-		if cfg.Database.Test != nil {
-			_ = enc.AddObject("test", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
-				enc.AddString("driver", cfg.Database.Test.Driver)
-				enc.AddString("dbname", cfg.Database.Test.Dbname)
-				enc.AddString("host", cfg.Database.Test.Host)
-				enc.AddInt("port", cfg.Database.Test.Port)
-				enc.AddString("user", cfg.Database.Test.User)
-				enc.AddString("schema", cfg.Database.Test.Schema)
-				enc.AddString("sslmode", cfg.Database.Test.Sslmode)
+	if cfg.Database != nil {
+		_ = enc.AddObject("database", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
+			_ = enc.AddObject("migrations", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
+				enc.AddString("location", cfg.Database.Migrations.Location)
+				enc.AddBool("run_on_start", cfg.Database.Migrations.RunOnStart)
 				return nil
 			}))
-		}
-		if cfg.Database.Models != nil {
-			_ = enc.AddObject("models", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
-				enc.AddString("output", cfg.Database.Models.Output)
-				enc.AddString("struct-tag-casing", cfg.Database.Models.StructTagCasing)
-				enc.AddBool("wipe", cfg.Database.Models.Wipe)
+			_ = enc.AddObject("main", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
+				enc.AddString("driver", cfg.Database.Main.Driver)
+				enc.AddString("dbname", cfg.Database.Main.Dbname)
+				enc.AddString("host", cfg.Database.Main.Host)
+				enc.AddInt("port", cfg.Database.Main.Port)
+				enc.AddString("user", cfg.Database.Main.User)
+				enc.AddString("schema", cfg.Database.Main.Schema)
+				enc.AddString("sslmode", cfg.Database.Main.Sslmode)
 				return nil
 			}))
-		}
-		return nil
-	}))
+			if cfg.Database.Test != nil {
+				_ = enc.AddObject("test", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
+					enc.AddString("driver", cfg.Database.Test.Driver)
+					enc.AddString("dbname", cfg.Database.Test.Dbname)
+					enc.AddString("host", cfg.Database.Test.Host)
+					enc.AddInt("port", cfg.Database.Test.Port)
+					enc.AddString("user", cfg.Database.Test.User)
+					enc.AddString("schema", cfg.Database.Test.Schema)
+					enc.AddString("sslmode", cfg.Database.Test.Sslmode)
+					return nil
+				}))
+			}
+			if cfg.Database.Models != nil {
+				_ = enc.AddObject("models", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
+					_ = enc.AddArray("blacklist", zapcore.ArrayMarshalerFunc(func(enc zapcore.ArrayEncoder) error {
+						for _, bl := range cfg.Database.Models.Blacklist {
+							enc.AppendString(bl)
+						}
+						return nil
+					}))
+					enc.AddBool("no-tests", cfg.Database.Models.NoTests)
+					enc.AddString("output", cfg.Database.Models.Output)
+					enc.AddString("struct-tag-casing", cfg.Database.Models.StructTagCasing)
+					enc.AddBool("wipe", cfg.Database.Models.Wipe)
+					return nil
+				}))
+			}
+			return nil
+		}))
+	}
 	return nil
 }
 
-// LoadConfig takes a reference to a struct that contains a core.Config.
+// loadConfig takes a reference to a struct that contains a core.Config.
 // It uses the --config flag to locate the configuration file and maps it to the referenced struct using viper.
 //
 // If any of the following occurs, it terminates the application with a fatal error:
@@ -330,7 +351,7 @@ func (cfg *Config) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 // - cannot locate the configuration file
 // - cannot map the configuration file to the referenced struct
 // - the referenced struct is not valid
-func LoadConfig(cfg Configuration) {
+func loadConfig(cfg Configuration) {
 	var path string
 	flag.StringVar(&path, "config", "./core.toml", "path to the config file")
 	flag.Parse()

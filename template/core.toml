@@ -64,6 +64,8 @@ port = 3001
     run_on_start = true
 
     [database.models]
+    blacklist = ["schema_migrations"]
+    no-tests = true
     output = "./src/models"
     struct-tag-casing = "camel"
     wipe = true

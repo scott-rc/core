@@ -256,9 +256,10 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Run
 func Run(opts Options) {
+	loadConfig(opts.Config)
 	logger := newLogger(opts.Config.CoreConfig())
 
-	detail = opts.ErrorDetailer
+	detail = opts.ErrorDecorator
 	if detail == nil {
 		logger.Fatal("ErrorDetailer must not be nil", "config", opts.Config)
 	}
@@ -267,7 +268,7 @@ func Run(opts Options) {
 		logger:   logger,
 		config:   opts.Config,
 		resolver: opts.Resolver,
-		decorate: opts.ResolverContextDecorator,
+		decorate: opts.ContextDecorator,
 		router:   chi.NewRouter(),
 
 		// set later
@@ -338,10 +339,10 @@ func Run(opts Options) {
 
 // Options
 type Options struct {
-	Config                   Configuration
-	ErrorDetailer            ErrorDetailer
-	ResolverContextDecorator ResolverContextDecorator
-	Resolver                 interface{}
+	Config           Configuration
+	ErrorDecorator   ErrorDetailer
+	ContextDecorator ResolverContextDecorator
+	Resolver         interface{}
 }
 
 // ResolverContextDecorator

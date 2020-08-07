@@ -18,6 +18,7 @@ import (
 var (
 	uni      *ut.UniversalTranslator
 	validate *validator.Validate
+	detail   ErrorDetailer
 )
 
 func init() {
@@ -30,7 +31,7 @@ func init() {
 // ErrorDetailer is a function that takes a *core.Error so that it can add details to it.
 type ErrorDetailer func(*Error)
 
-func DefaultErrorDetailer(e *Error) {
+func DefaultErrorDecorator(e *Error) {
 	// only changes the kind if it's unknown
 	changeTo := func(k ErrorKind) {
 		if e.Kind == KindUnknown {
@@ -60,10 +61,6 @@ func DefaultErrorDetailer(e *Error) {
 		}
 	}
 }
-
-var (
-	detail ErrorDetailer
-)
 
 // ErrorKind
 type ErrorKind struct {
@@ -226,6 +223,12 @@ func (e Error) HttpStatus() int {
 func (e Error) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	enc.AddString("message", e.Message)
 	_ = enc.AddObject("kind", e.Kind)
+	_ = enc.AddArray("details", zapcore.ArrayMarshalerFunc(func(enc zapcore.ArrayEncoder) error {
+		for _, detail := range e.Details {
+			enc.AppendString(detail)
+		}
+		return nil
+	}))
 	_ = enc.AddObject("cause", zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
 		enc.AddString("type", fmt.Sprintf("%T", e.Cause))
 		enc.AddString("message", e.Cause.Error())

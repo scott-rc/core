@@ -11,12 +11,10 @@ import (
 )
 
 func main() {
-	cfg := &core.Config{}
-	core.LoadConfig(cfg)
 	core.Run(core.Options{
-		Config:                   cfg,
-		ErrorDetailer:            core.DefaultErrorDetailer,
-		ResolverContextDecorator: app.ContextDecorator(),
-		Resolver:                 &resolver.Resolver{},
+		Config:           &core.Config{},
+		Resolver:         &resolver.Resolver{},
+		ContextDecorator: app.ContextDecorator(),
+		ErrorDecorator:   core.DefaultErrorDecorator,
 	})
 }
